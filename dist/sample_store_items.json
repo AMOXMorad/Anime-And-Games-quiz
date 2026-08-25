@@ -1,0 +1,61 @@
+[
+  {
+    "id": "frame_dragon_ball",
+    "type": "frame",
+    "name_ar": "إطار هالة السوبر سايان الذهبية",
+    "name_en": "Super Saiyan Gold Aura Frame",
+    "description_ar": "هالة طاقة مشعة تنفجر بقوة السوبر سايان",
+    "description_en": "Radiant energy aura bursting with golden Super Saiyan power",
+    "price": 450,
+    "rarity": "legendary",
+    "asset_url": "",
+    "is_active": true
+  },
+  {
+    "id": "frame_death_note",
+    "type": "frame",
+    "name_ar": "إطار مذكرة الموت المظلم",
+    "name_en": "Death Note Shadow Frame",
+    "description_ar": "إطار غامض ومظلم مستوحى من قوى الشينيغامي",
+    "description_en": "Mysterious shadow frame infused with Shinigami essence",
+    "price": 320,
+    "rarity": "epic",
+    "asset_url": "",
+    "is_active": true
+  },
+  {
+    "id": "tag_one_piece_skull",
+    "type": "tag",
+    "name_ar": "شعار قبعة القش",
+    "name_en": "Straw Hat Jolly Roger",
+    "description_ar": "رمز طاقم قبعة القش لملوك القراصنة",
+    "description_en": "The iconic Straw Hat crew Jolly Roger symbol",
+    "price": 220,
+    "rarity": "epic",
+    "asset_url": "☠️",
+    "is_active": true
+  },
+  {
+    "id": "tag_gaming_controller",
+    "type": "tag",
+    "name_ar": "ذراع تحكم المحترفين",
+    "name_en": "Pro Esports Controller",
+    "description_ar": "شارة الجيمرز وعشاق الرياضات الإلكترونية",
+    "description_en": "Badge for hardcore gamers and esports pros",
+    "price": 180,
+    "rarity": "rare",
+    "asset_url": "🎮",
+    "is_active": true
+  },
+  {
+    "id": "title_pirate_king",
+    "type": "title",
+    "name_ar": "ملك القراصنة الحقيقي",
+    "name_en": "The True King of Pirates",
+    "description_ar": "من يبحر بحرية مطلقة في كل بحار وعوالم يوتوبيا",
+    "description_en": "The one who sails with absolute freedom across Utopia",
+    "price": 600,
+    "rarity": "epic",
+    "is_active": true
+  }
+]

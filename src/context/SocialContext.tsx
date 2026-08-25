@@ -1,0 +1,346 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Profile, Friendship, ChatMessage, UserNotification, Suggestion, Report, StoreItem } from '../types';
+import { useAuth } from './AuthContext';
+import { sounds } from '../lib/sound';
+import confetti from 'canvas-confetti';
+
+interface SocialContextType {
+  friends: Friendship[];
+  notifications: UserNotification[];
+  suggestions: Suggestion[];
+  reports: Report[];
+  activeChatFriend: Friendship | null;
+  chatMessages: ChatMessage[];
+  unreadCount: number;
+  openChat: (friend: Friendship) => void;
+  closeChat: () => void;
+  sendMessage: (content: string) => void;
+  sendFriendRequest: (tagOrName: string) => { success: boolean; message: string };
+  respondFriendRequest: (friendshipId: string, accept: boolean) => void;
+  claimNotificationGift: (notificationId: string) => void;
+  submitSuggestion: (category: 'world' | 'mode' | 'shop' | 'feature', title: string, details: string) => void;
+  upvoteSuggestion: (id: string) => void;
+  submitReport: (type: 'player_report' | 'bug_report' | 'question_error', title: string, details: string, reportedUserId?: string) => void;
+  // Admin Methods
+  adminSendGift: (userId: string, coins: number, title_ar: string, title_en: string, msg_ar: string, msg_en: string, itemId?: string) => void;
+  adminBanUser: (userId: string, reason: string) => void;
+  adminResolveReport: (reportId: string) => void;
+  adminUpdateSuggestionStatus: (id: string, status: 'under_review' | 'planned' | 'implemented' | 'declined') => void;
+}
+
+const SocialContext = createContext<SocialContextType | null>(null);
+
+export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { profile, updateCoins, buyItem } = useAuth();
+  
+  // Seed demo friends
+  const [friends, setFriends] = useState<Friendship[]>([
+    {
+      id: 'fr_1',
+      user_id: 'current',
+      friend_id: 'demo_itachi',
+      status: 'accepted',
+      created_at: new Date().toISOString(),
+      friend_profile: {
+        id: 'demo_itachi',
+        username: 'Itachi_Uchiha',
+        tag: '1042',
+        is_guest: false,
+        role: 'user',
+        is_banned: false,
+        coins: 2400,
+        xp: 3200,
+        level: 18,
+        active_frame_id: 'frame_sharingan',
+        active_tag_id: 'tag_shinobi_flame',
+        active_title_id: 'title_king_shinobi',
+        showcase_titles: ['title_king_shinobi', 'title_ninja_leaf'],
+        showcase_tags: ['tag_shinobi_flame', 'tag_king_crown'],
+        showcase_frames: ['frame_sharingan', 'frame_gold_royalty'],
+        stats: { totalMatches: 48, wins: 40, correctAnswers: 320, streak: 12, whoAmIWins: 14, triviaWins: 16, superChallengeWins: 10 },
+        created_at: new Date().toISOString()
+      }
+    },
+    {
+      id: 'fr_2',
+      user_id: 'current',
+      friend_id: 'demo_rem',
+      status: 'accepted',
+      created_at: new Date().toISOString(),
+      friend_profile: {
+        id: 'demo_rem',
+        username: 'Rem_Maid',
+        tag: '7789',
+        is_guest: false,
+        role: 'user',
+        is_banned: false,
+        coins: 1800,
+        xp: 2100,
+        level: 12,
+        active_frame_id: 'frame_curse_flame',
+        active_tag_id: 'tag_rezero_apple',
+        active_title_id: 'title_death_return',
+        showcase_titles: ['title_death_return'],
+        showcase_tags: ['tag_rezero_apple'],
+        showcase_frames: ['frame_curse_flame'],
+        stats: { totalMatches: 30, wins: 22, correctAnswers: 190, streak: 5, whoAmIWins: 8, triviaWins: 9, superChallengeWins: 5 },
+        created_at: new Date().toISOString()
+      }
+    }
+  ]);
+
+  // Notifications (Includes welcome gifts from Admin / Founder)
+  const [notifications, setNotifications] = useState<UserNotification[]>([
+    {
+      id: 'notif_welcome',
+      user_id: 'current',
+      sender_admin_id: 'founder_admin',
+      title_ar: '🎁 هدية ترحيبية من مؤسس يوتوبيا!',
+      title_en: '🎁 Welcome Gift from The Grand Founder!',
+      message_ar: 'أهلاً بك في منصة AG Utopia! استلم 500 عملة مجانية كهدية انضمام لتخوض بها أولى مبارياتك وتشتري إطارك المفضل من المتجر.',
+      message_en: 'Welcome to AG Utopia! Claim 500 free coins as a newcomer bonus to conquer your first matches and customize your profile in the Store.',
+      gift_coins: 500,
+      is_claimed: false,
+      is_read: false,
+      created_at: new Date().toISOString()
+    }
+  ]);
+
+  // Community Suggestions
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([
+    {
+      id: 'sug_1',
+      user_id: 'user_1',
+      category: 'world',
+      title: 'إضافة عالم Attack on Titan (هجوم العمالقة)',
+      details: 'نطلب إضافة عالم إيرين وليفاي والعمالقة التسعة مع أسئلة وتريفيا ممتعة.',
+      upvotes: 42,
+      status: 'planned',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'sug_2',
+      user_id: 'user_2',
+      category: 'world',
+      title: 'إضافة عالم الألعاب: Elden Ring & Dark Souls',
+      details: 'عالم السولز والزعماء الأسطوريين مثل مالينيا ورادان.',
+      upvotes: 28,
+      status: 'under_review',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'sug_3',
+      user_id: 'user_3',
+      category: 'mode',
+      title: 'مود بطولة خروج المغلوب لـ 8 لاعبين',
+      details: 'نظام Tournament بنظام الشجرة وتصفيات بين 8 متنافسين.',
+      upvotes: 19,
+      status: 'under_review',
+      created_at: new Date().toISOString()
+    }
+  ]);
+
+  // Reports
+  const [reports, setReports] = useState<Report[]>([]);
+
+  // Direct Chat
+  const [activeChatFriend, setActiveChatFriend] = useState<Friendship | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  const openChat = (friend: Friendship) => {
+    setActiveChatFriend(friend);
+    sounds.playClick();
+  };
+
+  const closeChat = () => {
+    setActiveChatFriend(null);
+  };
+
+  const sendMessage = (content: string) => {
+    if (!content.trim() || !activeChatFriend || !profile) return;
+    const newMsg: ChatMessage = {
+      id: 'msg_' + Math.random().toString(36).substring(2, 9),
+      sender_id: profile.id,
+      receiver_id: activeChatFriend.friend_id,
+      content,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+    setChatMessages(prev => [...prev, newMsg]);
+    sounds.playClick();
+
+    // Simulated quick reply from friend after 1.5s
+    setTimeout(() => {
+      const replyMsg: ChatMessage = {
+        id: 'msg_reply_' + Math.random().toString(36).substring(2, 9),
+        sender_id: activeChatFriend.friend_id,
+        receiver_id: profile.id,
+        content: `تحياتي يا صديقي! هل أنت جاهز لتحدي سوبر 1v1 في عالم الفوضى؟ 🔥`,
+        is_read: false,
+        created_at: new Date().toISOString()
+      };
+      setChatMessages(prev => [...prev, replyMsg]);
+      sounds.playTimerTick();
+    }, 1500);
+  };
+
+  const sendFriendRequest = (tagOrName: string): { success: boolean; message: string } => {
+    if (!tagOrName.trim()) return { success: false, message: 'Invalid input' };
+    sounds.playClick();
+    return { success: true, message: 'Friend request sent successfully!' };
+  };
+
+  const respondFriendRequest = (friendshipId: string, accept: boolean) => {
+    setFriends(prev =>
+      prev.map(f => (f.id === friendshipId ? { ...f, status: accept ? 'accepted' : 'declined' } : f))
+    );
+    sounds.playClick();
+  };
+
+  const claimNotificationGift = (notificationId: string) => {
+    const notif = notifications.find(n => n.id === notificationId);
+    if (!notif || notif.is_claimed) return;
+
+    if (notif.gift_coins > 0) {
+      updateCoins(notif.gift_coins);
+    }
+    setNotifications(prev =>
+      prev.map(n => (n.id === notificationId ? { ...n, is_claimed: true, is_read: true } : n))
+    );
+    sounds.playClaim();
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.5 }
+    });
+  };
+
+  const submitSuggestion = (category: 'world' | 'mode' | 'shop' | 'feature', title: string, details: string) => {
+    const newSug: Suggestion = {
+      id: 'sug_' + Math.random().toString(36).substring(2, 9),
+      user_id: profile?.id || 'anon',
+      category,
+      title,
+      details,
+      upvotes: 1,
+      status: 'under_review',
+      created_at: new Date().toISOString(),
+      user_profile: profile || undefined,
+      has_voted: true
+    };
+    setSuggestions(prev => [newSug, ...prev]);
+    sounds.playVictory();
+  };
+
+  const upvoteSuggestion = (id: string) => {
+    setSuggestions(prev =>
+      prev.map(s => {
+        if (s.id === id) {
+          const hasVoted = s.has_voted;
+          return {
+            ...s,
+            upvotes: hasVoted ? s.upvotes - 1 : s.upvotes + 1,
+            has_voted: !hasVoted
+          };
+        }
+        return s;
+      })
+    );
+    sounds.playClick();
+  };
+
+  const submitReport = (type: 'player_report' | 'bug_report' | 'question_error', title: string, details: string, reportedUserId?: string) => {
+    const newRep: Report = {
+      id: 'rep_' + Math.random().toString(36).substring(2, 9),
+      reporter_id: profile?.id || 'anon',
+      reported_user_id: reportedUserId,
+      type,
+      title,
+      details,
+      status: 'open',
+      created_at: new Date().toISOString(),
+      reporter_profile: profile || undefined
+    };
+    setReports(prev => [newRep, ...prev]);
+    sounds.playClick();
+  };
+
+  // Admin capabilities
+  const adminSendGift = (
+    userId: string,
+    coins: number,
+    title_ar: string,
+    title_en: string,
+    msg_ar: string,
+    msg_en: string,
+    itemId?: string
+  ) => {
+    const newNotif: UserNotification = {
+      id: 'gift_' + Math.random().toString(36).substring(2, 9),
+      user_id: userId,
+      sender_admin_id: profile?.id,
+      title_ar,
+      title_en,
+      message_ar: msg_ar,
+      message_en: msg_en,
+      gift_coins: coins,
+      gift_item_id: itemId,
+      is_claimed: false,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    sounds.playVictory();
+  };
+
+  const adminBanUser = (_userId: string, _reason: string) => {
+    sounds.playWrong();
+  };
+
+  const adminResolveReport = (reportId: string) => {
+    setReports(prev => prev.map(r => (r.id === reportId ? { ...r, status: 'resolved' } : r)));
+    sounds.playClick();
+  };
+
+  const adminUpdateSuggestionStatus = (id: string, status: 'under_review' | 'planned' | 'implemented' | 'declined') => {
+    setSuggestions(prev => prev.map(s => (s.id === id ? { ...s, status } : s)));
+    sounds.playClick();
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_claimed || !n.is_read).length;
+
+  return (
+    <SocialContext.Provider
+      value={{
+        friends,
+        notifications,
+        suggestions,
+        reports,
+        activeChatFriend,
+        chatMessages,
+        unreadCount,
+        openChat,
+        closeChat,
+        sendMessage,
+        sendFriendRequest,
+        respondFriendRequest,
+        claimNotificationGift,
+        submitSuggestion,
+        upvoteSuggestion,
+        submitReport,
+        adminSendGift,
+        adminBanUser,
+        adminResolveReport,
+        adminUpdateSuggestionStatus
+      }}
+    >
+      {children}
+    </SocialContext.Provider>
+  );
+};
+
+export const useSocial = () => {
+  const ctx = useContext(SocialContext);
+  if (!ctx) throw new Error('useSocial must be used inside SocialProvider');
+  return ctx;
+};
