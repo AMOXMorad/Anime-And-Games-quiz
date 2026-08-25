@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { Language } from '../types';
 
 interface Translations {
@@ -66,8 +66,9 @@ export const translations: Translations = {
   codeCopied: { ar: 'تم نسخ الكود!', en: 'Code Copied!' },
 
   // Shop & Inventory
-  storeTitle: { ar: 'متجر يوتوبيا للجوائز', en: 'Utopia Rewards Store' },
-  storeSubtitle: { ar: 'ميّز نفسك بإطارات متوهجة، تيجان ملكية، وألقاب أسطورية', en: 'Stand out with glowing frames, royal tags, and legendary titles' },
+  storeTitle: { ar: 'متجر يوتوبيا للجوائز والتخصيص', en: 'Utopia Rewards & Customization Store' },
+  storeSubtitle: { ar: 'ميّز نفسك بصور بروفايل AI احترافية، إطارات متوهجة، تيجان ملكية، وألقاب أسطورية', en: 'Stand out with AI character avatars, glowing frames, royal tags, and legendary titles' },
+  avatars: { ar: 'صور البروفايل (AI Art)', en: 'AI Profile Avatars' },
   frames: { ar: 'إطارات البروفايل', en: 'Avatar Frames' },
   tags: { ar: 'تيجان وشارات الاسم', en: 'Name Tags & Badges' },
   titles: { ar: 'الألقاب', en: 'Titles' },
@@ -77,7 +78,7 @@ export const translations: Translations = {
   equip: { ar: 'تجهيز', en: 'Equip' },
   coins: { ar: 'عملة يوتوبيا', en: 'Coins' },
   notEnoughCoins: { ar: 'رصيد العملات غير كافٍ!', en: 'Not enough coins!' },
-  purchaseSuccess: { ar: 'تمت عملية الشراء بنجاح!', en: 'Purchase successful!' },
+  purchaseSuccess: { ar: 'تمت عملية الشراء والتجهيز بنجاح!', en: 'Purchase successful!' },
 
   // Profile & Showcases
   myProfile: { ar: 'الملف الشخصي والمقتنيات', en: 'Player Profile & Showcase' },
@@ -85,6 +86,7 @@ export const translations: Translations = {
   showcaseTitles: { ar: 'معرض أفضل 5 ألقاب', en: 'Top 5 Titles Showcase' },
   showcaseTags: { ar: 'معرض أفضل 5 شارات وتيجان', en: 'Top 5 Tags Showcase' },
   showcaseFrames: { ar: 'معرض أفضل 5 إطارات', en: 'Top 5 Frames Showcase' },
+  showcaseAvatars: { ar: 'معرض أفضل 5 صور بروفايل AI', en: 'Top 5 AI Avatars Showcase' },
   statsTitle: { ar: 'إحصائيات المعارك', en: 'Battle Statistics' },
   winRate: { ar: 'نسبة الفوز', en: 'Win Rate' },
   totalMatches: { ar: 'إجمالي المباريات', en: 'Total Matches' },

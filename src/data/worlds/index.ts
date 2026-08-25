@@ -23,7 +23,7 @@ export const chaosWorld: World = {
     en: 'Test your mastery across a blended cosmos of anime and games. Master it to claim "The Ultimate King of the Universe" title!'
   },
   icon: '🔮',
-  banner: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80',
+  banner: 'https://cdn.myanimelist.net/images/anime/13/17405.jpg',
   themeColor: '#6366f1',
   accentGlow: 'rgba(99, 102, 241, 0.6)',
   characters: [], // Dynamically loaded

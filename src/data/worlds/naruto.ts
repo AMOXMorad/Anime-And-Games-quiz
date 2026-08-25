@@ -16,14 +16,14 @@ export const narutoWorld: World = {
     en: 'Enter the realm of hidden villages, legendary chakra jutsu, the Valley of the End, and the fight for peace against the Akatsuki.'
   },
   icon: '🍥',
-  banner: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1600&q=80', // Atmospheric ninja backdrop
-  themeColor: '#f97316', // Orange
+  banner: 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/1735.jpg',
+  themeColor: '#f97316',
   accentGlow: 'rgba(249, 115, 22, 0.4)',
   characters: [
     {
       id: 'naruto_uzumaki',
       name: { ar: 'ناروتو أوزوماكي', en: 'Naruto Uzumaki' },
-      avatar: 'https://cdn.jsdelivr.net/gh/akabab/anime-characters-database@master/images/naruto.png',
+      avatar: 'https://s4.anilist.co/file/anilistcdn/character/large/b17-phjcWCkRuIhu.png',
       gender: 'male',
       role: { ar: 'الهوكاجي السابع وجينشوريكي الكيوبي', en: 'Seventh Hokage & Nine-Tails Jinchuriki' },
       powerType: { ar: 'نمط الناسك + تشاكرا الكوراما + الراسينغان', en: 'Sage Mode + Kurama Chakra + Rasengan' },
@@ -47,249 +47,286 @@ export const narutoWorld: World = {
     {
       id: 'sasuke_uchiha',
       name: { ar: 'ساسكي أوتشيها', en: 'Sasuke Uchiha' },
-      avatar: 'https://cdn.jsdelivr.net/gh/akabab/anime-characters-database@master/images/sasuke.png',
+      avatar: 'https://s4.anilist.co/file/anilistcdn/character/large/b13-SISLEw1oAD7a.png',
       gender: 'male',
       role: { ar: 'شينوبي الظلال والوريث الأخير للأوتشيها', en: 'Supporting Kage & Uchiha Prodigy' },
       powerType: { ar: 'المانغيكيو شارينغان الأبدية + الرينغان + التشيدوري', en: 'Eternal Mangekyo Sharingan + Rinnegan + Chidori' },
-      affiliation: { ar: 'عشيرة الأوتشيها', en: 'Uchiha Clan' },
+      affiliation: { ar: 'عشيرة الأوتشيها (كونوها)', en: 'Uchiha Clan (Hidden Leaf)' },
       quote: { ar: 'أنا أسير في طريقي الخاص في الظلام.', en: 'I walk my own path through the shadows.' },
       clues: {
         easy: [
           { ar: 'الناجي الوحيد من مذبحة عشيرة الأوتشيها الشهيرة', en: 'The sole survivor of the infamous Uchiha clan massacre' },
-          { ar: 'منافس ناروتو الأبدي وعضو الفريق السابع', en: 'Naruto’s eternal rival and member of Team 7' }
+          { ar: 'منافس ناروتو الأبدي وعضو الفريق السابع الأصلي', en: 'Naruto’s eternal rival and member of Team 7' }
         ],
         medium: [
-          { ar: 'تدرب على يد أوروتشيمارو لعدة سنوات ليكتسب القوة', en: 'Trained under Orochimaru for years to gain vengeance power' },
-          { ar: 'يستخدم تقنية التشيدوري بعنصر البرق وسيف الكوساناغي', en: 'Wields Lightning Release: Chidori and the Kusanagi sword' }
+          { ar: 'أيقظ الشارينغان لأول مرة في ليلة إبادة عشيرته', en: 'Awakened his Sharingan for the first time during the massacre night' },
+          { ar: 'استخدم عنصر البرق (التشيدوري) بتعليم من كاكاشي', en: 'Mastered the Lightning Release Chidori under Kakashi’s guidance' }
         ],
         hard: [
-          { ar: 'هو التناسخ الروحي لـ إندرا أوتسوتسوكي', en: 'He is the spiritual reincarnation of Indra Otsutsuki' },
-          { ar: 'حصل على الرينغان ذات الفواصل الستة في عينه اليسرى من حكيم المسارات الستة', en: 'Received the six-tomoe Rinnegan in his left eye from Hagoromo' }
-        ]
-      }
-    },
-    {
-      id: 'kakashi_hatake',
-      name: { ar: 'كاكاشي هاتاكي', en: 'Kakashi Hatake' },
-      avatar: 'https://cdn.jsdelivr.net/gh/akabab/anime-characters-database@master/images/kakashi.png',
-      gender: 'male',
-      role: { ar: 'الهوكاجي السادس والنينجا الناسخ', en: 'Sixth Hokage & The Copy Ninja' },
-      powerType: { ar: 'الشارينغان + الرايكيري + الكاموي', en: 'Sharingan + Raikiri + Kamui' },
-      affiliation: { ar: 'قرية كونوها', en: 'Hidden Leaf Village' },
-      quote: { ar: 'الذين يخالفون القواعد حثالة، لكن الذين يتخلون عن رفاقهم أسوأ من الحثالة!', en: 'Those who break the rules are scum, but those who abandon their friends are worse than scum!' },
-      clues: {
-        easy: [
-          { ar: 'يغطي النصف السفلي من وجهه بقناع دائم', en: 'Always covers the lower half of his face with a mask' },
-          { ar: 'معلم الفريق السابع وقائد اختبار الجرس الشهير', en: 'Teacher of Team 7 and leader of the famous bell test' }
-        ],
-        medium: [
-          { ar: 'يقرأ روايات "جنة الغزل" التي ألفها جيرايا', en: 'Constantly reads the "Icha Icha Paradise" novels written by Jiraiya' },
-          { ar: 'ابن "ناب كونوها الأبيض" ساكومو هاتاكي', en: 'Son of the "White Fang of the Leaf", Sakumo Hatake' }
-        ],
-        hard: [
-          { ar: 'حصل على الشارينغان كهدية وداع من صديقه أوبيتو في جسر كانابي', en: 'Received his Sharingan as a parting gift from Obito at Kannabi Bridge' },
-          { ar: 'أصغر نينجا تخرج من الأكاديمية في سن الخامسة وأصبح جونين في سن العاشرة', en: 'Youngest graduate at age 5 and became a Jonin at age 10' }
+          { ar: 'التناسخ الروحي لـ إندرا أوتسوتسوكي', en: 'He is the spiritual reincarnation of Indra Otsutsuki' },
+          { ar: 'حصل على ختم اللعنة السماوي من أوروتشيمارو في غابة الموت', en: 'Received the Cursed Seal of Heaven from Orochimaru in the Forest of Death' }
         ]
       }
     },
     {
       id: 'itachi_uchiha',
       name: { ar: 'إيتاتشي أوتشيها', en: 'Itachi Uchiha' },
-      avatar: 'https://cdn.jsdelivr.net/gh/akabab/anime-characters-database@master/images/itachi.png',
+      avatar: 'https://s4.anilist.co/file/anilistcdn/character/large/b14-9Kb1E5oel1ke.png',
       gender: 'male',
-      role: { ar: 'بطل كونوها في الظلال وعضو الأكاتسكي', en: 'Hero in the Shadows & Akatsuki Operative' },
-      powerType: { ar: 'التسوكويومي + الأماتيراسو + سوسانو بسيف توتسوكا', en: 'Tsukuyomi + Amaterasu + Susanoo with Totsuka Blade' },
-      affiliation: { ar: 'الأكاتسكي / كونوها', en: 'Akatsuki / Hidden Leaf' },
-      quote: { ar: 'تضحية الشينوبي الحقيقي تكون في الظلال دون انتظار شكر من أحد.', en: 'A true shinobi protects peace from within the shadows without seeking glory.' },
+      role: { ar: 'عبقري الأوتشيها وحامي كونوها من الظلال', en: 'Uchiha Prodigy & Protector from the Shadows' },
+      powerType: { ar: 'تسوكيومي + أماتيراسو + سوسانو (سيف توتسوكا)', en: 'Tsukuyomi + Amaterasu + Susanoo (Totsuka Blade)' },
+      affiliation: { ar: 'منظمة الأكاتسكي (سابقاً كونوها/الأنبو)', en: 'Akatsuki (Formerly Leaf Village ANBU)' },
+      quote: { ar: 'تضحية الشينوبي الحقيقي تكون دائماً في الخفاء.', en: 'Self-sacrifice... a true shinobi does not seek glory.' },
       clues: {
         easy: [
-          { ar: 'الأخ الأكبر لساسكي الذي قاد مذبحة العشيرة لحماية القرية', en: 'Sasuke’s older brother who sacrificed his clan for the village peace' },
-          { ar: 'يرتدي عباءة الأكاتسكي السوداء المزينة بالسحب الحمراء وخاتم "شوشين"', en: 'Wears the black Akatsuki cloak with red clouds and the Shu ring' }
+          { ar: 'الأخ الأكبر لساسكي الذي أباد العشيرة لحماية القرية', en: 'Sasuke’s older brother who wiped out the clan to save the village' },
+          { ar: 'عضو أسطوري في منظمة الأكاتسكي مع شريكه كيسامي', en: 'Legendary member of the Akatsuki partnered with Kisame' }
         ],
         medium: [
-          { ar: 'يتحكم بنيران الأماتيراسو السوداء التي تحرق لسبعة أيام وليال', en: 'Commands the black flames of Amaterasu that burn for seven days and nights' },
-          { ar: 'صديقه المقرب كان شيسوي أوتشيها الذي أهداه عينه اليسرى كوتواماتسوكامي', en: 'Best friend of Shisui Uchiha who gifted him his Kotoamatsukami eye' }
+          { ar: 'تخرج من أكاديمية النينجا في سن 7 سنوات وأصبح قائد أنبو في سن 13', en: 'Graduated the Academy at age 7 and became an ANBU Captain at 13' },
+          { ar: 'يحمل سيف توتسوكا ومرآة ياتا في السوسانو الخاص به', en: 'Wields the Totsuka Blade and Yata Mirror in his ethereal Susanoo' }
         ],
         hard: [
-          { ar: 'يمتلك السوسانو المسلحة بمرآة ياتا وسيف توتسوكا القادر على الختم الأبدي', en: 'His Susanoo wields the Yata Mirror and the soul-sealing Totsuka Blade' },
-          { ar: 'تخلص من الإيدو تينسي بنفسه عبر الغينجوتسو المطلق في عين الغراب', en: 'Broke free from Edo Tensei control using the crow eye Kotoamatsukami' }
+          { ar: 'قام بزرع عين شيسوي مع تقنية كوتواماتسوكامي في غراب داخل ناروتو', en: 'Implanted Shisui’s Kotoamatsukami eye into a crow inside Naruto' },
+          { ar: 'تحرر ذاتياً من سيطرة تقنية الإيدو تينسي أثناء حرب النينجا الرابعة', en: 'Freed himself from the Edo Tensei control during the 4th Ninja War' }
+        ]
+      }
+    },
+    {
+      id: 'kakashi_hatake',
+      name: { ar: 'كاكاشي هاتاكي', en: 'Kakashi Hatake' },
+      avatar: 'https://s4.anilist.co/file/anilistcdn/character/large/b85-mkVBh2yjxjmx.png',
+      gender: 'male',
+      role: { ar: 'الهوكاجي السادس والنينجا الناسخ', en: 'Sixth Hokage & Copy Ninja' },
+      powerType: { ar: 'رايكيري + الكاموي (البعد الفضائي) + نسخ 1000 جيتسو', en: 'Raikiri + Kamui + 1000 Jutsu Copies' },
+      affiliation: { ar: 'قرية كونوها (الفريق السابع)', en: 'Hidden Leaf Village (Team 7)' },
+      quote: { ar: 'الذين يكسرون القواعد حثالة، لكن الذين يتخلون عن أصدقائهم أسوأ من الحثالة!', en: 'Those who break rules are scum, but those who abandon their friends are worse than scum!' },
+      clues: {
+        easy: [
+          { ar: 'معروف بقراءة روايات "جنة الغزل" الشهيرة لجيرايا', en: 'Famous for reading Jiraiya’s Icha Icha Paradise novels' },
+          { ar: 'يرتدي قناعاً يغطي وجهه وعينه اليسرى بها شارينغان', en: 'Wears a mask covering his face with a Sharingan in his left eye' }
+        ],
+        medium: [
+          { ar: 'ابن الناب الأبيض لكونوها (ساكومو هاتاكي)', en: 'Son of the White Fang of the Leaf (Sakumo Hatake)' },
+          { ar: 'مبتكر تقنية التشيدوري والرايكيري الشهيرة', en: 'Creator of the original Chidori and Raikiri jutsu' }
+        ],
+        hard: [
+          { ar: 'حصل على الشارينغان من صديقه أوبيتو في معركة جسر كانابي', en: 'Received his Sharingan from Obito at the Kannabi Bridge battle' },
+          { ar: 'أيقظ السوسانو المثالي الكامل مؤقتاً في معركة كاغويا', en: 'Temporarily manifested a Complete Perfect Susanoo against Kaguya' }
         ]
       }
     },
     {
       id: 'madara_uchiha',
       name: { ar: 'مادارا أوتشيها', en: 'Madara Uchiha' },
-      avatar: 'https://cdn.jsdelivr.net/gh/akabab/anime-characters-database@master/images/madara.png',
+      avatar: 'https://s4.anilist.co/file/anilistcdn/character/large/b53901-HnRKSoHMG5Vg.png',
       gender: 'male',
-      role: { ar: 'مؤسس كونوها مع هاشيراما ومطلق التسوكويومي اللانهائية', en: 'Co-founder of Konoha & Infinite Tsukuyomi Architect' },
-      powerType: { ar: 'الرينغان الكاملة + نيزك تينغاي شينسي + السوسانو المثالي', en: 'Complete Rinnegan + Tengai Shinsei Meteor + Perfect Susanoo' },
-      affiliation: { ar: 'عشيرة الأوتشيها', en: 'Uchiha Clan' },
-      quote: { ar: 'استيقظ على الواقع! لا شيء يسير كما خُطط له في هذا العالم البائس.', en: 'Wake up to reality! Nothing ever goes as planned in this accursed world.' },
+      role: { ar: 'مؤسس كونوها الأسطوري وزعيم الأوتشيها', en: 'Legendary Co-Founder of Konoha & Uchiha Clan Head' },
+      powerType: { ar: 'السوسانو الكامل + الرينغان + قوى التينغاي شينسي (النيازك)', en: 'Perfect Susanoo + Rinnegan + Tengai Shinsei Meteors' },
+      affiliation: { ar: 'عشيرة الأوتشيها (مهندس خطة عين القمر)', en: 'Uchiha Clan (Architect of Eye of the Moon Plan)' },
+      quote: { ar: 'هل تريد أن ترقص معي؟ في هذا العالم حيث يوجد ضوء يوجد ظل دائماً.', en: 'Would you like to dance? In this world, wherever there is light, there are shadows.' },
       clues: {
         easy: [
-          { ar: 'أسقط نيزكين ضخمين على قوات تحالف الشينوبي بمفرده', en: 'Dropped two colossal meteors on the Shinobi Alliance single-handedly' },
-          { ar: 'المنافس التاريخي للهوكاجي الأول هاشيراما سينجو', en: 'The historical arch-rival of First Hokage Hashirama Senju' }
+          { ar: 'أسس قرية كونوها رفقة صديقه وغريمه هاشيراما سينجو', en: 'Co-founded the Hidden Leaf alongside his rival Hashirama Senju' },
+          { ar: 'أسقط نيزكين ضخمين على قوات تحالف الشينوبي بمفرده', en: 'Summoned two colossal meteors on the Shinobi Alliance single-handedly' }
         ],
         medium: [
-          { ar: 'أيقظ الرينغان في أواخر حياته بدمج خلايا هاشيراما مع عينه', en: 'Awakened the Rinnegan late in life by fusing Hashirama cells' },
-          { ar: 'استخدم مروحة الحرب العملاقة "الغانباي" لعكس أقوى الهجمات', en: 'Wielded the giant Gunbai war fan to reflect incoming jutsu' }
+          { ar: 'أول إنسان يوقظ الرينغان طبيعياً بدمج خلايا هاشيراما مع دمه', en: 'First human to naturally awaken the Rinnegan by fusing Hashirama cells' },
+          { ar: 'استدعى وحش الكيوبي وسيطر عليه بالشارينغان لمواجهة هاشيراما', en: 'Controlled the Nine-Tails with his Sharingan to duel Hashirama' }
         ],
         hard: [
-          { ar: 'أول بشري يروض وحش الكيوبي بسحر الشارينغان في معركة وادي النهاية', en: 'First mortal to tame Kurama using Sharingan at the Valley of the End' },
-          { ar: 'أصبح جينشوريكي الجيوبي (ذيول العشرة) وفتح عين التسوكي نو مي على القمر', en: 'Became the Ten-Tails Jinchuriki and projected the Infinite Tsukuyomi onto the moon' }
+          { ar: 'هو أول شخص في تاريخ عشيرة الأوتشيها يوقظ المانغيكيو شارينغان الأبدية', en: 'First person in Uchiha history to awaken the Eternal Mangekyo Sharingan' },
+          { ar: 'أصبح جينشوريكي الجيوبي (ذي الذيول العشرة) في حرب النينجا الرابعة', en: 'Became the Ten-Tails Jinchuriki during the 4th Great Ninja War' }
+        ]
+      }
+    },
+    {
+      id: 'jiraiya',
+      name: { ar: 'جيرايا (الناسك المنحرف)', en: 'Jiraiya (Toad Sage)' },
+      avatar: 'https://s4.anilist.co/file/anilistcdn/character/large/b2423-RO5MyoXSA9OL.png',
+      gender: 'male',
+      role: { ar: 'أحد السنانين الأسطوريين وكاتب شهير', en: 'Legendary Sannin & Toad Sage' },
+      powerType: { ar: 'نمط ناسك الضفادع + استدعاء غامابونتا + التشاكرا النارية والزيت', en: 'Toad Sage Mode + Gamabunta Summon + Fire & Oil Release' },
+      affiliation: { ar: 'قرية كونوها (جبل ميوبوكو)', en: 'Hidden Leaf Village (Mount Myoboku)' },
+      quote: { ar: 'مقياس الشينوبي الحقيقي ليس في كيفية حياته، بل في كيفية موته!', en: 'A shinobi’s life is not measured by how they live, but by what they achieved before death!' },
+      clues: {
+        easy: [
+          { ar: 'أحد السنانين الثلاثة الأسطوريين ومعلم ناروتو وميناتو', en: 'One of the Legendary Three Sannin and teacher of Naruto and Minato' },
+          { ar: 'يركب دائماً على ظهور ضفادع جبل ميوبوكو العملاقة', en: 'Summons giant battle toads from Mount Myoboku' }
+        ],
+        medium: [
+          { ar: 'مؤلف سلسلة كتب "إيتشا إيتشا بارادايس" التي يقرأها كاكاشي', en: 'Author of the Icha Icha romance novels read by Kakashi' },
+          { ar: 'علّم ناروتو كيفية استدعاء الضفادع واستخدام الراسينغان', en: 'Taught Naruto toad summoning and the Rasengan' }
+        ],
+        hard: [
+          { ar: 'تنبأ الحكيم العظيم للضفادع بأنه سيربي طفل النبوءة الذي سيغير العالم', en: 'Great Toad Sage prophesied he would mentor the Child of Prophecy' },
+          { ar: 'ضحى بحياته في قرية المطر لكشف سر باين وأرسل الكود المشفر على ظهر فوكاساكو', en: 'Died in the Hidden Rain to decode Pain’s secret, writing the message on Fukasaku’s back' }
         ]
       }
     }
   ],
   triviaQuestions: [
     {
-      id: 'naruto_q1',
+      id: 'n_triv_1',
       difficulty: 'easy',
-      question: {
-        ar: 'ما هو اسم المطعم المفضل لناروتو أوزوماكي لتناول الرامن؟',
-        en: 'What is Naruto Uzumaki’s favorite ramen shop called?'
-      },
-      options: [
-        { ar: 'رامن إيتشيراكو', en: 'Ichiraku Ramen' },
-        { ar: 'رامن كونوها', en: 'Konoha Ramen' },
-        { ar: 'رامن الشينوبي', en: 'Shinobi Ramen' },
-        { ar: 'رامن تيوكي', en: 'Teuchi Ramen' }
-      ],
-      correctIndex: 0,
-      explanation: {
-        ar: 'رامن إيتشيراكو الذي يديره العم تيوكي وابنته أيامي كان الملاذ المفضل لناروتو منذ صغره.',
-        en: 'Ichiraku Ramen, run by Teuchi and his daughter Ayame, has always been Naruto’s favorite comfort spot.'
-      }
+      question: { ar: 'ما هو اسم مطعم الرامن المفضل لناروتو في كونوها؟', en: 'What is Naruto’s favorite ramen shop in Konoha?' },
+      options: [{ ar: 'إيتشيراكو رامن', en: 'Ichiraku Ramen' }, { ar: 'كونوها ياكيزورا', en: 'Konoha Noodles' }, { ar: 'يوتوبيا رامن', en: 'Utopia Ramen' }, { ar: 'هوكاجي سوبا', en: 'Hokage Soba' }],
+      correctIndex: 0
     },
     {
-      id: 'naruto_q2',
+      id: 'n_triv_2',
       difficulty: 'easy',
-      question: {
-        ar: 'من هو مبتكر تقنية "الراسينغان" الأصلية؟',
-        en: 'Who originally invented the "Rasengan" jutsu?'
-      },
-      options: [
-        { ar: 'ميناتو ناميكازي (الهوكاجي الرابع)', en: 'Minato Namikaze (4th Hokage)' },
-        { ar: 'جيرايا الناسك', en: 'Jiraiya the Sage' },
-        { ar: 'كاكاشي هاتاكي', en: 'Kakashi Hatake' },
-        { ar: 'هاشيراما سينجو', en: 'Hashirama Senju' }
-      ],
-      correctIndex: 0,
-      explanation: {
-        ar: 'ميناتو ناميكازي استغرق 3 سنوات لابتكار الراسينغان مستوحياً الفكرة من كرة وحش البيجو.',
-        en: 'Minato spent 3 years developing the Rasengan, inspired by the Tailed Beast Bomb.'
-      }
+      question: { ar: 'من هو الهوكاجي الرابع والد ناروتو؟', en: 'Who is the Fourth Hokage and Naruto’s father?' },
+      options: [{ ar: 'ميناتو ناميكازي', en: 'Minato Namikaze' }, { ar: 'جيرايا', en: 'Jiraiya' }, { ar: 'هاشيراما', en: 'Hashirama' }, { ar: 'توبيراما', en: 'Tobirama' }],
+      correctIndex: 0
     },
     {
-      id: 'naruto_q3',
+      id: 'n_triv_3',
       difficulty: 'medium',
-      question: {
-        ar: 'ما اسم السيف الأسطوري الذي استخدمه إيتاتشي أوتشيها في سوسانو لختم أوروتشيمارو وناغاتو؟',
-        en: 'What is the mythical sword wielded by Itachi’s Susanoo to seal Orochimaru and Nagato?'
-      },
-      options: [
-        { ar: 'سيف توتسوكا (سيف الساكي السكير)', en: 'Totsuka Blade' },
-        { ar: 'سيف كوساناغي', en: 'Kusanagi Sword' },
-        { ar: 'سيف النوبيساكي', en: 'Nobisaki Blade' },
-        { ar: 'سيف نونوبوكو', en: 'Sword of Nunoboko' }
-      ],
-      correctIndex: 0,
-      explanation: {
-        ar: 'سيف توتسوكا هو سلاح أثيري يحبس أي شخص يطعنه في جرة خمر داخل غينجوتسو حلم أبدي.',
-        en: 'The Totsuka Blade is an ethereal weapon that seals anyone it pierces into a jar of infinite genjutsu dreams.'
-      }
+      question: { ar: 'ما اسم السيف الأسطوري في سوسانو إيتاتشي الذي يختم الخصوم للأبد؟', en: 'What is the legendary sword in Itachi’s Susanoo that seals enemies forever?' },
+      options: [{ ar: 'سيف توتسوكا', en: 'Totsuka Blade' }, { ar: 'سيف كوساناغي', en: 'Kusanagi' }, { ar: 'مرآة ياتا', en: 'Yata Mirror' }, { ar: 'سيمبونزاكورا', en: 'Senbonzakura' }],
+      correctIndex: 0
     },
     {
-      id: 'naruto_q4',
-      difficulty: 'medium',
-      question: {
-        ar: 'كم عدد البوابات الثمانية التي فتحها مايت غاي في معركته الملحمية ضد مادارا أوتشيها؟',
-        en: 'How many of the Eight Inner Gates did Might Guy open in his fight against Madara?'
-      },
-      options: [
-        { ar: 'البوابات الثمانية جميعها (بوابة الموت)', en: 'All 8 Gates (Gate of Death)' },
-        { ar: '7 بوابات فقط (بوابة العجب)', en: '7 Gates (Gate of Wonder)' },
-        { ar: '6 بوابات (بوابة الرؤية)', en: '6 Gates (Gate of View)' },
-        { ar: '5 بوابات', en: '5 Gates' }
-      ],
-      correctIndex: 0,
-      explanation: {
-        ar: 'فتح مايت غاي بوابة الموت الثامنة واستخدم تقنية "فراشة الليل / Night Guy" واعترف به مادارا كأقوى مستخدم للتايجوتسو.',
-        en: 'Guy opened all Eight Gates, unleashing Night Guy, earning Madara’s praise as the strongest taijutsu user.'
-      }
-    },
-    {
-      id: 'naruto_q5',
+      id: 'n_triv_4',
       difficulty: 'hard',
-      question: {
-        ar: 'ما اسم المكان السري الذي احتفظت فيه عشيرة الأوتشيها بلوح المونووليث الحجري الذي تركه حكيم المسارات الستة؟',
-        en: 'What is the secret shrine where the Uchiha stone monument was hidden?'
-      },
-      options: [
-        { ar: 'ضريح ناكانو (Naka Shrine)', en: 'Naka Shrine' },
-        { ar: 'مقر شينسيكي', en: 'Shinseki Hall' },
-        { ar: 'وادي كانابي', en: 'Kannabi Cave' },
-        { ar: 'كهف ريوتشي', en: 'Ryuchi Temple' }
-      ],
-      correctIndex: 0,
-      explanation: {
-        ar: 'ضريح ناكانو في ضواحي كونوها كان يحتوي في قبو سري تحت حصير التاتامي على اللوح الحجري الذي لا يقرأه إلا أصحاب الشارينغان والرينغان.',
-        en: 'The secret chamber underneath the main tatami mat of the Naka Shrine held the ancient stone tablet.'
-      }
+      question: { ar: 'ما هي الرسالة المشفرة التي نقشها جيرايا على ظهر الضفدع؟', en: 'What was Jiraiya’s decoded message on the toad’s back?' },
+      options: [{ ar: 'الحقيقي ليس بين أحد منهم', en: 'The real one is not among them' }, { ar: 'باين في البرج', en: 'Pain is in the tower' }, { ar: 'الرينغان مزيفة', en: 'The Rinnegan is fake' }, { ar: 'ناغاتو يسيطر عليهم', en: 'Nagato controls them' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_5',
+      difficulty: 'easy',
+      question: { ar: 'ما هو العنصر الأساسي لتشاكرا ناروتو الطبيعية؟', en: 'What is Naruto’s primary natural chakra nature?' },
+      options: [{ ar: 'عنصر الرياح (فوتون)', en: 'Wind Release' }, { ar: 'عنصر النار (كاتون)', en: 'Fire Release' }, { ar: 'عنصر البرق (رايتون)', en: 'Lightning Release' }, { ar: 'عنصر الماء (سويتون)', en: 'Water Release' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_6',
+      difficulty: 'medium',
+      question: { ar: 'من هو مبتكر تقنية نسخ الظل (كاجي بونشين نو جيتسو) وتقنية الإيدو تينسي؟', en: 'Who created the Shadow Clone jutsu and Edo Tensei?' },
+      options: [{ ar: 'توبيراما سينجو (الهوكاجي الثاني)', en: 'Tobirama Senju' }, { ar: 'هاشيراما سينجو', en: 'Hashirama Senju' }, { ar: 'أوروتشيمارو', en: 'Orochimaru' }, { ar: 'ميناتو ناميكازي', en: 'Minato Namikaze' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_7',
+      difficulty: 'easy',
+      question: { ar: 'ما هو الاسم الحقيقي لوحش الذيول التسعة (الكيوبي)؟', en: 'What is the true name of the Nine-Tails Fox?' },
+      options: [{ ar: 'كوراما', en: 'Kurama' }, { ar: 'شوكاكو', en: 'Shukaku' }, { ar: 'غيوكي', en: 'Gyuki' }, { ar: 'ماتاتابي', en: 'Matatabi' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_8',
+      difficulty: 'medium',
+      question: { ar: 'ما هي العين الأسطورية التي يمتلكها ناغاتو وساسكي ومادارا؟', en: 'What legendary dojutsu is shared by Nagato, Sasuke, and Madara?' },
+      options: [{ ar: 'الرينغان', en: 'Rinnegan' }, { ar: 'البياكوغان', en: 'Byakugan' }, { ar: 'التنسيغان', en: 'Tenseigan' }, { ar: 'الكيتسوريوغان', en: 'Ketsuryugan' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_9',
+      difficulty: 'hard',
+      question: { ar: 'كم عدد البوابات الثمانية التي فتحها مايت غاي ضد مادارا؟', en: 'How many of the Eight Gates did Might Guy open against Madara?' },
+      options: [{ ar: 'جميع البوابات الثمانية (بوابة الموت)', en: 'All Eight Gates (Gate of Death)' }, { ar: 'سبع بوابات فقط', en: 'Seven Gates' }, { ar: 'ست بوابات', en: 'Six Gates' }, { ar: 'خمس بوابات', en: 'Five Gates' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_10',
+      difficulty: 'easy',
+      question: { ar: 'ما اسم القرية التي ينتمي إليها غارا؟', en: 'What hidden village does Gaara belong to?' },
+      options: [{ ar: 'قرية الرمال المخفية (سوناغاكوري)', en: 'Hidden Sand Village' }, { ar: 'قرية المطر', en: 'Hidden Rain' }, { ar: 'قرية الضباب', en: 'Hidden Mist' }, { ar: 'قرية السحاب', en: 'Hidden Cloud' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_11',
+      difficulty: 'medium',
+      question: { ar: 'من هو المعلم الأول لناروتو في الأكاديمية الذي اعترف به وحماه من ميزوكي؟', en: 'Who was Naruto’s first Academy teacher who acknowledged him?' },
+      options: [{ ar: 'إيروكا أومينو', en: 'Iruka Umino' }, { ar: 'كاكاشي هاتاكي', en: 'Kakashi' }, { ar: 'إيبيسو', en: 'Ebisu' }, { ar: 'أسوما ساروتوبي', en: 'Asuma' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_12',
+      difficulty: 'medium',
+      question: { ar: 'ما اسم السيف العظيم ذو الأشواك الذي كان يحمله كيسامي هوشيغاكي؟', en: 'What was the name of Kisame’s chakra-eating blade?' },
+      options: [{ ar: 'ساميهادا (جلد القرش)', en: 'Samehada' }, { ar: 'كوبيكيريبوتشو', en: 'Kubikiribocho' }, { ar: 'كيبا', en: 'Kiba' }, { ar: 'هيراميكاري', en: 'Hiramekarei' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_13',
+      difficulty: 'hard',
+      question: { ar: 'ما هي المنظمة السرية في كونوها التي كان يقودها دانزو شيمورا؟', en: 'What was the secret division in Konoha led by Danzo Shimura?' },
+      options: [{ ar: 'جذور الأنبو (The Foundation / Root)', en: 'The Foundation (Root)' }, { ar: 'فرقة الصقور', en: 'Hawk Division' }, { ar: 'حراس الهوكاجي الاثني عشر', en: 'Twelve Guardian Ninja' }, { ar: 'شرطة كونوها', en: 'Konoha Police' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_14',
+      difficulty: 'easy',
+      question: { ar: 'من هي النينجا الطبية وحفيدة الهوكاجي الأول التي أصبحت الهوكاجي الخامس؟', en: 'Who is the medical ninja and granddaughter of the 1st Hokage who became 5th Hokage?' },
+      options: [{ ar: 'تسونادي سينجو', en: 'Tsunade Senju' }, { ar: 'شيزوني', en: 'Shizune' }, { ar: 'كوريناي', en: 'Kurenai' }, { ar: 'ميتو أوزوماكي', en: 'Mito Uzumaki' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_15',
+      difficulty: 'medium',
+      question: { ar: 'ما هو اسم تقنية الوهم البصري الأقوى لشيسوي أوتشيها؟', en: 'What is Shisui Uchiha’s ultimate genjutsu technique?' },
+      options: [{ ar: 'كوتواماتسوكامي', en: 'Kotoamatsukami' }, { ar: 'تسوكيومي', en: 'Tsukuyomi' }, { ar: 'إيزانامي', en: 'Izanami' }, { ar: 'إيزاناغي', en: 'Izanagi' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_16',
+      difficulty: 'hard',
+      question: { ar: 'ما اسم الجبل المقدس الذي تعلم فيه ناروتو وجيرايا نمط الناسك؟', en: 'What sacred mountain did Naruto and Jiraiya master Sage Mode on?' },
+      options: [{ ar: 'جبل ميوبوكو (Myoboku)', en: 'Mount Myoboku' }, { ar: 'كهف ريوتشي', en: 'Ryuchi Cave' }, { ar: 'غابة شيكوتسو', en: 'Shikkotsu Forest' }, { ar: 'وادي السحاب', en: 'Cloud Valley' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_17',
+      difficulty: 'easy',
+      question: { ar: 'من هو قائد الفريق الثامن المكون من كيبا وشينو وهيناتا؟', en: 'Who was the jonin leader of Team 8 (Kiba, Shino, Hinata)?' },
+      options: [{ ar: 'كوريناي يوهي', en: 'Kurenai Yuhi' }, { ar: 'أسوما ساروتوبي', en: 'Asuma' }, { ar: 'غاي', en: 'Guy' }, { ar: 'أنكو', en: 'Anko' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_18',
+      difficulty: 'medium',
+      question: { ar: 'ما اسم التناسخين الأوائل لأبناء حكيم المسارات الستة؟', en: 'Who were the two sons of the Sage of Six Paths?' },
+      options: [{ ar: 'إندرا وآشورا', en: 'Indra and Asura' }, { ar: 'هاغورومو وهامورا', en: 'Hagoromo and Hamura' }, { ar: 'مادارا وهاشيراما', en: 'Madara and Hashirama' }, { ar: 'ساسكي وناروتو', en: 'Sasuke and Naruto' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_19',
+      difficulty: 'hard',
+      question: { ar: 'ما هو الاسم الحقيقي لجسد باين الرئيسي (مسار الديفا)؟', en: 'What was the real name of Pain’s Deva Path host body?' },
+      options: [{ ar: 'ياهيكو', en: 'Yahiko' }, { ar: 'ناغاتو', en: 'Nagato' }, { ar: 'كونان', en: 'Konan' }, { ar: 'هانزو', en: 'Hanzo' }],
+      correctIndex: 0
+    },
+    {
+      id: 'n_triv_20',
+      difficulty: 'hard',
+      question: { ar: 'ما هو الكائن الأول الذي استدعته كاغويا أوتسوتسوكي وحولته إلى شجرة التشاكرا؟', en: 'What entity did Kaguya fuse with that became the Ten-Tails?' },
+      options: [{ ar: 'الوحش ذو الذيول العشرة (الجيوبي)', en: 'The Ten-Tails (Juubi)' }, { ar: 'الكيوبي والهاشيمي', en: 'Kurama & Gyuki' }, { ar: 'جدول الضفادع', en: 'Toad Elder' }, { ar: 'السوسانو المطلق', en: 'Ultimate Susanoo' }],
+      correctIndex: 0
     }
   ],
   trueFalseQuestions: [
-    {
-      id: 'naruto_tf1',
-      difficulty: 'easy',
-      statement: {
-        ar: 'عشيرة الأوزوماكي اشتهرت عبر التاريخ بإتقانها الفائق لتقنيات الختم (الفوجينجوتسو) وقوة حياتهم الكبيرة.',
-        en: 'The Uzumaki clan was historically renowned for their mastery of Fuinjutsu (sealing jutsu) and immense life force.'
-      },
-      isCorrect: true,
-      explanation: {
-        ar: 'صحيح! لدرجة أن قرية أوزوشيو دمرت من خوف بقية القرى من مهارات أختامهم.',
-        en: 'Correct! Uzushio was destroyed precisely because other nations feared their unmatched sealing jutsu.'
-      }
-    },
-    {
-      id: 'naruto_tf2',
-      difficulty: 'easy',
-      statement: {
-        ar: 'كاكاشي هاتاكي هو الشخص الذي اخترع تقنية الشارينغان.',
-        en: 'Kakashi Hatake is the person who originally invented the Sharingan.'
-      },
-      isCorrect: false,
-      explanation: {
-        ar: 'خطأ! الشارينغان كيكي غينكاي وراثي لعشيرة الأوتشيها وتعود لأصول كاغويا وإندرا، وكاكاشي زرعها بعدما أهداها له أوبيتو.',
-        en: 'False! The Sharingan is an inherited Kekkei Genkai of the Uchiha clan tracing back to Indra Otsutsuki.'
-      }
-    },
-    {
-      id: 'naruto_tf3',
-      difficulty: 'medium',
-      statement: {
-        ar: 'إيتاشي أوتشيها تخرج من أكاديمية النينجا وهو في سن السابعة من عمره.',
-        en: 'Itachi Uchiha graduated from the Ninja Academy at the age of seven.'
-      },
-      isCorrect: true,
-      explanation: {
-        ar: 'صحيح! تخرج في سن 7 سنوات كأحد أعظم العباقرة في تاريخ كونوها.',
-        en: 'Correct! He graduated at age 7 with top marks in just one year of enrollment.'
-      }
-    },
-    {
-      id: 'naruto_tf4',
-      difficulty: 'hard',
-      statement: {
-        ar: 'توبي (أوبيتو أوتشيها) لم يفقد عينه اليسرى أبداً عندما سقطت عليه الصخور في جسر كانابي.',
-        en: 'Obito Uchiha never actually lost his left eye during the rock collapse at Kannabi bridge.'
-      },
-      isCorrect: false,
-      explanation: {
-        ar: 'خطأ! النصف الأيمن من جسده سحق بالصخور وهو بنفسه طلب من رين استئصال عينه اليسرى وإهدائها لكاكاشي.',
-        en: 'False! His right side was crushed, and Rin transplanted his left eye into Kakashi as a Jonin gift.'
-      }
-    }
+    { id: 'n_tf_1', difficulty: 'easy', statement: { ar: 'كاكاشي هاتاكي ينتمي إلى عشيرة الأوتشيها بالدم.', en: 'Kakashi belongs to the Uchiha clan by blood.' }, isCorrect: false },
+    { id: 'n_tf_2', difficulty: 'easy', statement: { ar: 'ناروتو أوزوماكي هو التناسخ الروحي لـ آشورا أوتسوتسوكي.', en: 'Naruto is Asura’s spiritual reincarnation.' }, isCorrect: true },
+    { id: 'n_tf_3', difficulty: 'medium', statement: { ar: 'ميناتو ناميكازي هو مبتكر تقنية الراسينغان الأصلية.', en: 'Minato is the original inventor of the Rasengan.' }, isCorrect: true },
+    { id: 'n_tf_4', difficulty: 'hard', statement: { ar: 'تقنية الإيزاناغي تعمي عين المستخدم للأبد.', en: 'The Izanagi technique permanently blinds the eye.' }, isCorrect: true },
+    { id: 'n_tf_5', difficulty: 'easy', statement: { ar: 'إيتاتشي أوتشيها أباد عشيرته بسبب كرهه لأخيه ساسكي.', en: 'Itachi destroyed his clan because he hated Sasuke.' }, isCorrect: false },
+    { id: 'n_tf_6', difficulty: 'medium', statement: { ar: 'هاشيراما سينجو يمتلك عنصر الخشب (الموكوتون) بشكل طبيعي وراثي.', en: 'Hashirama naturally possesses Wood Release.' }, isCorrect: true },
+    { id: 'n_tf_7', difficulty: 'easy', statement: { ar: 'غارا أصبح الكازيكاجي الخامس لقرية الرمال.', en: 'Gaara became the Fifth Kazekage of the Sand.' }, isCorrect: true },
+    { id: 'n_tf_8', difficulty: 'medium', statement: { ar: 'أوروتشيمارو تم ختمه بسيف توتسوكا الخاص بإيتاتشي.', en: 'Orochimaru was sealed by Itachi’s Totsuka blade.' }, isCorrect: true },
+    { id: 'n_tf_9', difficulty: 'hard', statement: { ar: 'أوبيتو أوتشيها هو من درب ميناتو ناميكازي في طفولته.', en: 'Obito trained Minato during childhood.' }, isCorrect: false },
+    { id: 'n_tf_10', difficulty: 'easy', statement: { ar: 'هيناتا هيوفا تنتمي للفرع الرئيسي لعشيرة الهيوفا.', en: 'Hinata belongs to the Hyuga Main Family.' }, isCorrect: true },
+    { id: 'n_tf_11', difficulty: 'medium', statement: { ar: 'ساسكي أوتشيها أيقظ الرينغان في كلتا عينيه اليمنى واليسرى.', en: 'Sasuke awakened the Rinnegan in both eyes.' }, isCorrect: false },
+    { id: 'n_tf_12', difficulty: 'easy', statement: { ar: 'شيكامارو نارا يشتهر بذكائه الخارق واستخدام تقنيات الظلال.', en: 'Shikamaru is famous for intellect and shadow jutsu.' }, isCorrect: true },
+    { id: 'n_tf_13', difficulty: 'hard', statement: { ar: 'ناغاتو ينتمي إلى عشيرة الأوزوماكي بالدم ويمتلك شعرهم الأحمر.', en: 'Nagato is of Uzumaki blood with their red hair.' }, isCorrect: true },
+    { id: 'n_tf_14', difficulty: 'medium', statement: { ar: 'جيرايا تمكن من هزيمة باين والعودة حياً لكونوها.', en: 'Jiraiya defeated Pain and returned alive.' }, isCorrect: false },
+    { id: 'n_tf_15', difficulty: 'easy', statement: { ar: 'تسونادي سينجو هي إحدى السنانين الثلاثة الأسطوريين.', en: 'Tsunade is one of the Three Legendary Sannin.' }, isCorrect: true },
+    { id: 'n_tf_16', difficulty: 'hard', statement: { ar: 'مانغيكيو شارينغان كاكاشي وأوبيتو متصلتان بنفس البعد الفضائي (الكاموي).', en: 'Kakashi and Obito’s Mangekyo connect to the same Kamui dimension.' }, isCorrect: true },
+    { id: 'n_tf_17', difficulty: 'medium', statement: { ar: 'ساسوري كان يتحكم بجسده كدمية بشرية تحتوي على قلب تشاكرا نابض.', en: 'Sasori converted his body into a puppet with a living core.' }, isCorrect: true },
+    { id: 'n_tf_18', difficulty: 'easy', statement: { ar: 'روك لي يستطيع استخدام تقنيات النينجيتسو والجينجيتسو ببراعة.', en: 'Rock Lee excels at ninjutsu and genjutsu.' }, isCorrect: false },
+    { id: 'n_tf_19', difficulty: 'hard', statement: { ar: 'توبيراما سينجو هو من صمم قرية كونوها وأنشأ شرطة الأوتشيها.', en: 'Tobirama Senju established the Konoha Police Force.' }, isCorrect: true },
+    { id: 'n_tf_20', difficulty: 'hard', statement: { ar: 'مادارا أوتشيها خطط لخطة عين القمر بعد قراءته للوح الأوتشيها المحرف من زيتسو.', en: 'Madara planned the Eye of the Moon after reading the stone tablet altered by Zetsu.' }, isCorrect: true }
   ]
 };

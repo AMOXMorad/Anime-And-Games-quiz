@@ -1,5 +1,31 @@
 [
   {
+    "id": "avatar_goku_ultra",
+    "type": "avatar",
+    "name_ar": "غوكو - الغريزة الفائقة الفضية (AI Art)",
+    "name_en": "Ultra Instinct Goku (AI Art)",
+    "description_ar": "بورتريه سينمائي بالذكاء الاصطناعي لغوكو بهالة الفضة الكونية المطلقة",
+    "description_en": "Cinematic AI portrait of Ultra Instinct Goku radiating silver godspeed aura",
+    "price": 500,
+    "rarity": "legendary",
+    "avatar_category": "anime",
+    "asset_url": "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=400&q=80",
+    "is_active": true
+  },
+  {
+    "id": "avatar_luffy_gear5",
+    "type": "avatar",
+    "name_ar": "لوفي - محارب التحرير نيكا الجير 5 (AI Art)",
+    "name_en": "Luffy Gear 5 Sun God (AI Art)",
+    "description_ar": "لوحة ناصعة بالذكاء الاصطناعي للوفي في طور الجير الخامس بشعر وسحاب أبيض متوهج",
+    "description_en": "Radiant AI portrait of Gear 5 Luffy laughing with celestial white clouds",
+    "price": 550,
+    "rarity": "legendary",
+    "avatar_category": "anime",
+    "asset_url": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80",
+    "is_active": true
+  },
+  {
     "id": "frame_dragon_ball",
     "type": "frame",
     "name_ar": "إطار هالة السوبر سايان الذهبية",
@@ -33,18 +59,6 @@
     "price": 220,
     "rarity": "epic",
     "asset_url": "☠️",
-    "is_active": true
-  },
-  {
-    "id": "tag_gaming_controller",
-    "type": "tag",
-    "name_ar": "ذراع تحكم المحترفين",
-    "name_en": "Pro Esports Controller",
-    "description_ar": "شارة الجيمرز وعشاق الرياضات الإلكترونية",
-    "description_en": "Badge for hardcore gamers and esports pros",
-    "price": 180,
-    "rarity": "rare",
-    "asset_url": "🎮",
     "is_active": true
   },
   {

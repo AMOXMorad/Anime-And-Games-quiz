@@ -18,11 +18,12 @@ import {
   CheckCircle, 
   Copy, 
   Check, 
-  Edit3
+  Wand2, 
+  Image
 } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
-  const { profile, inventory, updateShowcases } = useAuth();
+  const { profile, inventory, updateShowcases, equipItem } = useAuth();
   const { lang, t } = useI18n();
 
   const [copiedTag, setCopiedTag] = useState(false);
@@ -42,14 +43,23 @@ export const ProfileView: React.FC = () => {
     setTimeout(() => setCopiedTag(false), 2000);
   };
 
-  // Get owned titles, tags, frames for showcase customization
+  // Get owned items
+  const ownedAvatars = INITIAL_STORE_ITEMS.filter(i => i.type === 'avatar' && inventory.includes(i.id));
   const ownedTitles = INITIAL_STORE_ITEMS.filter(i => i.type === 'title' && inventory.includes(i.id));
   const ownedTags = INITIAL_STORE_ITEMS.filter(i => i.type === 'tag' && inventory.includes(i.id));
   const ownedFrames = INITIAL_STORE_ITEMS.filter(i => i.type === 'frame' && inventory.includes(i.id));
 
-  const toggleShowcase = (type: 'titles' | 'tags' | 'frames', itemId: string) => {
+  const toggleShowcase = (type: 'titles' | 'tags' | 'frames' | 'avatars', itemId: string) => {
     sounds.playClick();
-    let current = type === 'titles' ? [...profile.showcase_titles] : type === 'tags' ? [...profile.showcase_tags] : [...profile.showcase_frames];
+    let current =
+      type === 'titles'
+        ? [...profile.showcase_titles]
+        : type === 'tags'
+        ? [...profile.showcase_tags]
+        : type === 'frames'
+        ? [...profile.showcase_frames]
+        : [...(profile.showcase_avatars || [])];
+
     if (current.includes(itemId)) {
       current = current.filter(id => id !== itemId);
     } else {
@@ -69,7 +79,11 @@ export const ProfileView: React.FC = () => {
           
           {/* Avatar & Identity */}
           <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-start">
-            <AvatarWithFrame frameId={profile.active_frame_id} size="2xl" />
+            <AvatarWithFrame 
+              avatarUrl={profile.avatar_url} 
+              frameId={profile.active_frame_id} 
+              size="2xl" 
+            />
             <div>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
                 <h1 className="text-2xl sm:text-3xl font-black text-white">{profile.username}</h1>
@@ -116,6 +130,56 @@ export const ProfileView: React.FC = () => {
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {/* SHOWCASE SECTION 0: Top 5 AI Profile Avatars */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-base text-white flex items-center gap-2">
+              <Wand2 className="w-4 h-4 text-pink-400" />
+              <span>{t('showcaseAvatars')} (تخصيص وتجهيز صور بروفايل AI)</span>
+            </h3>
+            <span className="text-xs text-slate-400">انقر على أي أفاتار لتجهيزه مباشرة كصورتك الرمزية أو إضافته للمفضلة</span>
+          </div>
+          <span className="text-xs font-black text-pink-400">
+            {profile.showcase_avatars?.length || 1} / 5
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          {ownedAvatars.map(av => {
+            const isEquipped = profile.active_avatar_id === av.id;
+            const isShowcased = profile.showcase_avatars?.includes(av.id);
+
+            return (
+              <div
+                key={av.id}
+                onClick={() => {
+                  equipItem(av.id, 'avatar', av.asset_url);
+                  toggleShowcase('avatars', av.id);
+                }}
+                className={`p-3 rounded-2xl border transition-all flex flex-col items-center gap-2 cursor-pointer ${
+                  isEquipped
+                    ? 'bg-pink-950/70 border-pink-500 text-pink-200 shadow-[0_0_15px_rgba(219,39,119,0.4)] ring-2 ring-pink-400'
+                    : isShowcased
+                    ? 'bg-slate-950 border-purple-500/60 text-slate-300'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                <div className="w-16 h-16 rounded-full overflow-hidden border border-slate-700">
+                  <img src={av.asset_url} alt={av.name_ar} className="w-full h-full object-cover" />
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-bold line-clamp-1">{lang === 'ar' ? av.name_ar : av.name_en}</div>
+                  {isEquipped && (
+                    <span className="text-[10px] text-pink-400 font-bold">✓ مُجهّز حالياً</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

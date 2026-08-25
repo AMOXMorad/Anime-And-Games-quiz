@@ -3,7 +3,7 @@ import { World, TrueFalseQuestion, Difficulty } from '../../types';
 import { useI18n } from '../../lib/i18n';
 import { useGame } from '../../context/GameContext';
 import { sounds } from '../../lib/sound';
-import { Timer, Zap, Check, X, ArrowRight, Trophy, AlertCircle } from 'lucide-react';
+import { Timer, Zap, Check, X, ArrowRight, Trophy, AlertCircle, Flag, AlertTriangle } from 'lucide-react';
 
 interface TrueFalseModeProps {
   world: World;
@@ -19,15 +19,15 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userChoice, setUserChoice] = useState<boolean | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
-  const [timeLeft, setTimeLeft] = useState<number>(8); // Fast blitz timer
+  const [timeLeft, setTimeLeft] = useState<number>(8); // 8-second fast blitz timer
   const [score, setScore] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState<boolean>(false);
 
   useEffect(() => {
     let qList = world.trueFalseQuestions;
-    const filtered = qList.filter(q => q.difficulty === difficulty);
-    const pool = filtered.length > 0 ? filtered : qList;
-    setQuestions([...pool].sort(() => 0.5 - Math.random()).slice(0, 5));
+    const shuffled = [...qList].sort(() => 0.5 - Math.random());
+    setQuestions(shuffled.slice(0, 20));
   }, [world, difficulty]);
 
   useEffect(() => {
@@ -61,8 +61,8 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
     const q = questions[currentIndex];
     if (choice === q.isCorrect) {
       sounds.playCorrect();
-      const speedBonus = timeLeft * 10;
-      const points = 100 + streak * 15 + speedBonus;
+      const speedBonus = timeLeft * 12;
+      const points = 100 + streak * 20 + speedBonus;
       setScore(prev => prev + points);
       setStreak(prev => prev + 1);
     } else {
@@ -83,125 +83,172 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
     }
   };
 
+  const handleSurrender = () => {
+    sounds.playWrong();
+    setShowSurrenderConfirm(false);
+    onFinish(score);
+  };
+
   if (questions.length === 0) {
     return (
       <div className="text-center py-20">
-        <div className="text-xl font-bold text-white mb-4">جاري تجهيز الأسئلة السريعة...</div>
+        <div className="text-xl font-bold text-white mb-4">جاري تجهيز بنك الـ 20 سؤالاً السريعة...</div>
       </div>
     );
   }
 
   const currentQ = questions[currentIndex];
+  const timerPercentage = (timeLeft / 8) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto px-4 py-8 animate-fadeIn">
+      
       {/* HUD Header */}
-      <div className="flex items-center justify-between bg-slate-900/80 border border-slate-800 p-4 rounded-2xl mb-6 backdrop-blur-md">
+      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 p-4 rounded-2xl mb-6 backdrop-blur-md shadow-xl">
         <div className="flex items-center gap-3">
-          <button
-            onClick={exitGame}
-            className="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800"
-          >
-            خروج
-          </button>
-          <div className="text-xs font-bold text-slate-300">
-            السؤال <span className="text-cyan-400 font-black text-sm">{currentIndex + 1}</span> / {questions.length}
+          <div className="text-xs font-black text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1.5 rounded-xl">
+            السؤال {currentIndex + 1} / {questions.length} (20 سؤال)
           </div>
-        </div>
-
-        {/* Rapid Blitz Timer */}
-        <div className="flex items-center gap-2">
-          <Timer className={`w-4 h-4 ${timeLeft <= 3 ? 'text-rose-500 animate-bounce' : 'text-cyan-400'}`} />
-          <span className={`font-black text-sm ${timeLeft <= 3 ? 'text-rose-400' : 'text-white'}`}>
-            {timeLeft}s
-          </span>
-        </div>
-
-        {/* Score & Streak */}
-        <div className="flex items-center gap-4">
           {streak > 1 && (
-            <div className="flex items-center gap-1 text-xs font-black text-amber-400 bg-amber-950/60 border border-amber-500/40 px-2.5 py-1 rounded-full animate-pulse">
-              <Zap className="w-3.5 h-3.5 fill-current" />
-              <span>{streak}x Streak</span>
+            <div className="flex items-center gap-1 text-xs font-black text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2.5 py-1 rounded-xl animate-pulse">
+              <Zap className="w-3.5 h-3.5" />
+              <span>كومبو x{streak}</span>
             </div>
           )}
-          <div className="flex items-center gap-1 font-black text-sm text-cyan-300">
-            <Trophy className="w-4 h-4 text-cyan-400" />
-            <span>{score} pts</span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="text-sm font-black text-white">
+            النقاط: <span className="text-amber-400">{score}</span>
           </div>
+
+          <button
+            onClick={() => { setShowSurrenderConfirm(true); sounds.playClick(); }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 text-rose-300 text-xs font-bold transition-all"
+            title="انسحاب وإنهاء الجولة"
+          >
+            <Flag className="w-3.5 h-3.5" />
+            <span>انسحاب</span>
+          </button>
         </div>
       </div>
 
-      {/* Statement Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl mb-6 text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-bold text-xs mb-6">
-          ⚡ بليتز صح أم خطأ
+      {/* Surrender Confirmation Modal */}
+      {showSurrenderConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-rose-500/50 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <AlertTriangle className="w-12 h-12 text-rose-400 mx-auto mb-3 animate-bounce" />
+            <h4 className="text-lg font-black text-white mb-1">هل تود الانسحاب من جولة الصح والخطأ؟</h4>
+            <p className="text-xs text-slate-300 mb-6">
+              سيتم إنهاء الجولة واحتساب النقاط التي جمعتها حتى الآن ({score} نقطة).
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSurrenderConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+              >
+                متابعة اللعب
+              </button>
+              <button
+                onClick={handleSurrender}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold"
+              >
+                نعم، انسحب
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blitz Timer Bar */}
+      <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden mb-6 border border-slate-800">
+        <div 
+          className={`h-full transition-all duration-1000 ${
+            timeLeft <= 3 ? 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.9)] animate-pulse' : 'bg-gradient-to-r from-cyan-500 to-teal-400'
+          }`}
+          style={{ width: `${timerPercentage}%` }}
+        />
+      </div>
+
+      {/* Main Statement Card */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl text-center mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            {world.name[lang]} • وميض السرعة
+          </span>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+            <Timer className="w-4 h-4 text-cyan-400" />
+            <span className={timeLeft <= 3 ? 'text-rose-400 font-black' : ''}>{timeLeft}s</span>
+          </div>
         </div>
 
-        <h3 className="text-xl sm:text-2xl font-black text-white leading-relaxed mb-8">
+        <h2 className="text-xl sm:text-2xl font-black text-white my-8 leading-relaxed">
           "{currentQ.statement[lang]}"
-        </h3>
+        </h2>
 
-        {/* True / False Buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* True Button */}
+        {/* TRUE / FALSE Dual Giant Buttons */}
+        <div className="grid grid-cols-2 gap-4 my-6">
+          
+          {/* TRUE BUTTON */}
           <button
             disabled={isAnswered}
             onClick={() => handleAnswer(true)}
-            className={`py-5 px-6 rounded-2xl font-black text-base transition-all flex flex-col items-center justify-center gap-2 ${
+            className={`p-6 rounded-2xl border-2 font-black text-base flex flex-col items-center justify-center gap-2 transition-all duration-200 ${
               isAnswered
-                ? currentQ.isCorrect
-                  ? 'bg-emerald-950 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
+                ? currentQ.isCorrect === true
+                  ? 'bg-emerald-950 border-emerald-500 text-emerald-300 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
                   : userChoice === true
-                  ? 'bg-rose-950 border-2 border-rose-500 text-rose-300'
-                  : 'bg-slate-950 opacity-40 border border-slate-800 text-slate-500'
-                : 'bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white shadow-lg hover:scale-105'
+                  ? 'bg-rose-950 border-rose-500 text-rose-300 ring-2 ring-rose-400'
+                  : 'bg-slate-950/40 border-slate-900 opacity-40'
+                : 'bg-slate-950 border-slate-800 hover:border-emerald-500 hover:bg-emerald-950/30 text-white shadow-lg'
             }`}
           >
-            <Check className="w-7 h-7" />
-            <span>صح (TRUE)</span>
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+              <Check className="w-6 h-6" />
+            </div>
+            <span>{t('trueBtn')} (صحيح)</span>
           </button>
 
-          {/* False Button */}
+          {/* FALSE BUTTON */}
           <button
             disabled={isAnswered}
             onClick={() => handleAnswer(false)}
-            className={`py-5 px-6 rounded-2xl font-black text-base transition-all flex flex-col items-center justify-center gap-2 ${
+            className={`p-6 rounded-2xl border-2 font-black text-base flex flex-col items-center justify-center gap-2 transition-all duration-200 ${
               isAnswered
-                ? !currentQ.isCorrect
-                  ? 'bg-emerald-950 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
+                ? currentQ.isCorrect === false
+                  ? 'bg-emerald-950 border-emerald-500 text-emerald-300 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
                   : userChoice === false
-                  ? 'bg-rose-950 border-2 border-rose-500 text-rose-300'
-                  : 'bg-slate-950 opacity-40 border border-slate-800 text-slate-500'
-                : 'bg-rose-600/20 hover:bg-rose-600 border border-rose-500/40 hover:border-rose-400 text-rose-300 hover:text-white shadow-lg hover:scale-105'
+                  ? 'bg-rose-950 border-rose-500 text-rose-300 ring-2 ring-rose-400'
+                  : 'bg-slate-950/40 border-slate-900 opacity-40'
+                : 'bg-slate-950 border-slate-800 hover:border-rose-500 hover:bg-rose-950/30 text-white shadow-lg'
             }`}
           >
-            <X className="w-7 h-7" />
-            <span>خطأ (FALSE)</span>
+            <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/40">
+              <X className="w-6 h-6" />
+            </div>
+            <span>{t('falseBtn')} (خطأ)</span>
           </button>
+
         </div>
 
-        {/* Explanation */}
-        {isAnswered && currentQ.explanation && (
-          <div className="mt-6 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-300 text-start flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-            <span>{currentQ.explanation[lang]}</span>
+        {/* Explanation & Next */}
+        {isAnswered && (
+          <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
+            <div className="text-xs text-slate-300 text-start max-w-md">
+              {currentQ.explanation ? currentQ.explanation[lang] : 'إجابة صحيحة! استعد للسؤال التالي.'}
+            </div>
+
+            <button
+              onClick={handleNext}
+              className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center gap-1.5 transition-all"
+            >
+              <span>{currentIndex + 1 < questions.length ? 'السؤال التالي' : 'عرض النتائج النهائية'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         )}
-      </div>
 
-      {/* Next Button */}
-      {isAnswered && (
-        <div className="flex justify-end">
-          <button
-            onClick={handleNext}
-            className="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-black text-sm rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all animate-bounce"
-          >
-            <span>{currentIndex + 1 < questions.length ? t('nextQuestion') : 'إنهاء وعرض النتائج'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+      </div>
 
     </div>
   );

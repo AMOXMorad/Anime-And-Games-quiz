@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { I18nProvider, useI18n } from './lib/i18n';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocialProvider, useSocial } from './context/SocialContext';
@@ -33,11 +33,11 @@ import { TriviaMode } from './components/game/TriviaMode';
 import { TrueFalseMode } from './components/game/TrueFalseMode';
 import { WhoAmIMode } from './components/game/WhoAmIMode';
 import { SuperChallengeArena } from './components/game/SuperChallengeArena';
-import { Film, Gamepad2, Globe, Sparkles } from 'lucide-react';
+import { Film, Gamepad2, Globe, Sparkles, LogIn } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
   const { lang, t } = useI18n();
-  const { profile } = useAuth();
+  const { profile, isLoading } = useAuth();
   const { activeChatFriend, closeChat, openChat } = useSocial();
   const { 
     selectedWorld, 
@@ -74,12 +74,27 @@ const MainAppContent: React.FC = () => {
     coinsEarned: number;
   } | null>(null);
 
+  // Prompt login modal on first entry if no active session
+  useEffect(() => {
+    if (!isLoading && !profile) {
+      setAuthModalOpen(true);
+    }
+  }, [isLoading, profile]);
+
   const handleOpenWorldModal = (worldId: string) => {
+    if (!profile) {
+      setAuthModalOpen(true);
+      return;
+    }
     setActiveWorldId(worldId);
     setWorldModalOpen(true);
   };
 
   const handleOpenMatchmaking = (worldId: string, diff: Difficulty) => {
+    if (!profile) {
+      setAuthModalOpen(true);
+      return;
+    }
     setActiveWorldId(worldId);
     setMatchmakingDiff(diff);
     setMatchmakingModalOpen(true);
@@ -108,84 +123,17 @@ const MainAppContent: React.FC = () => {
     setVictoryModalOpen(true);
   };
 
-  const filteredWorlds = activeCategoryFilter === 'all'
-    ? allWorlds
-    : allWorlds.filter(w => w.category === activeCategoryFilter);
+  const filteredWorlds = allWorlds.filter(w => {
+    if (activeCategoryFilter === 'all') return true;
+    return w.category === activeCategoryFilter;
+  });
 
-  // If in active gameplay mode
-  if (isPlaying && selectedWorld && selectedMode) {
-    return (
-      <div className="min-h-screen bg-utopia-dark flex flex-col justify-between">
-        <Navbar
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-          openAuthModal={() => setAuthModalOpen(true)}
-          openNotifications={() => setNotifDrawerOpen(true)}
-          openFriendsModal={() => setFriendsModalOpen(true)}
-          openSuggestionsModal={() => setSuggestionsModalOpen(true)}
-        />
-
-        <main className="flex-1">
-          {selectedMode === 'trivia' && (
-            <TriviaMode
-              world={selectedWorld}
-              difficulty={selectedDifficulty}
-              onFinish={handleSoloGameFinish}
-            />
-          )}
-
-          {selectedMode === 'true_false' && (
-            <TrueFalseMode
-              world={selectedWorld}
-              difficulty={selectedDifficulty}
-              onFinish={handleSoloGameFinish}
-            />
-          )}
-
-          {selectedMode === 'who_am_i' && (
-            <WhoAmIMode
-              world={selectedWorld}
-              difficulty={selectedDifficulty}
-              onFinish={handleSoloGameFinish}
-            />
-          )}
-
-          {selectedMode === 'super_challenge' && opponentProfile && (
-            <SuperChallengeArena
-              world={selectedWorld}
-              difficulty={selectedDifficulty}
-              opponent={opponentProfile}
-              onComplete={handleSuperGameFinish}
-            />
-          )}
-        </main>
-
-        <VictoryModal
-          isOpen={victoryModalOpen}
-          won={lastMatchResult?.won || false}
-          score={lastMatchResult?.score || 0}
-          opponentScore={lastMatchResult?.oppScore}
-          xpEarned={lastMatchResult?.xpEarned || 0}
-          coinsEarned={lastMatchResult?.coinsEarned || 0}
-          onClose={() => setVictoryModalOpen(false)}
-          onPlayAgain={() => {
-            setVictoryModalOpen(false);
-            if (activeWorldId) handleOpenWorldModal(activeWorldId);
-          }}
-        />
-
-        <Footer
-          openReportModal={() => setReportModalOpen(true)}
-          openSuggestionsModal={() => setSuggestionsModalOpen(true)}
-        />
-      </div>
-    );
-  }
+  const activeWorld = activeWorldId ? getWorldById(activeWorldId) : null;
 
   return (
-    <div className="min-h-screen bg-utopia-dark flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-500 selection:text-white">
       
-      {/* Navbar */}
+      {/* Top Navigation */}
       <Navbar
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -195,89 +143,165 @@ const MainAppContent: React.FC = () => {
         openSuggestionsModal={() => setSuggestionsModalOpen(true)}
       />
 
-      {/* Main Views Container */}
+      {/* Main Container */}
       <main className="flex-1">
         
-        {/* VIEW 1: Worlds & Chaos Arena Page */}
-        {currentView === 'worlds' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10 animate-fadeIn">
-            
-            {/* 1. Chaos Realm Card (Top Center) */}
-            <div>
-              <ChaosRealmCard onOpenWorldModal={handleOpenWorldModal} />
-            </div>
+        {/* IF PLAYING A GAME MODE */}
+        {isPlaying && selectedWorld ? (
+          <div className="py-6">
+            {selectedMode === 'trivia' && (
+              <TriviaMode
+                world={selectedWorld}
+                difficulty={selectedDifficulty}
+                onFinish={handleSoloGameFinish}
+              />
+            )}
 
-            {/* 2. Category Filter Tabs (All / Anime / Games) */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
-                  <span>عوالم يوتوبيا التنافسية</span>
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                </h2>
-                <span className="text-xs text-slate-400">اختر عالمك المفضل وانطلق في التحديات والأسئلة</span>
-              </div>
+            {selectedMode === 'true_false' && (
+              <TrueFalseMode
+                world={selectedWorld}
+                difficulty={selectedDifficulty}
+                onFinish={handleSoloGameFinish}
+              />
+            )}
 
-              <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
-                <button
-                  onClick={() => setActiveCategoryFilter('all')}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    activeCategoryFilter === 'all'
-                      ? 'bg-purple-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>{t('allWorlds')}</span>
-                </button>
+            {selectedMode === 'who_am_i' && (
+              <WhoAmIMode
+                world={selectedWorld}
+                difficulty={selectedDifficulty}
+                onFinish={handleSoloGameFinish}
+              />
+            )}
 
-                <button
-                  onClick={() => setActiveCategoryFilter('anime')}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    activeCategoryFilter === 'anime'
-                      ? 'bg-purple-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Film className="w-3.5 h-3.5" />
-                  <span>{t('anime')}</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveCategoryFilter('games')}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    activeCategoryFilter === 'games'
-                      ? 'bg-purple-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Gamepad2 className="w-3.5 h-3.5" />
-                  <span>{t('games')}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 3. Worlds Grid (Naruto, Re:Zero, etc.) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredWorlds.map(world => (
-                <WorldCard
-                  key={world.id}
-                  world={world}
-                  onOpen={handleOpenWorldModal}
-                />
-              ))}
-            </div>
-
+            {selectedMode === 'super_challenge' && opponentProfile && (
+              <SuperChallengeArena
+                world={selectedWorld}
+                difficulty={selectedDifficulty}
+                opponent={opponentProfile}
+                onComplete={handleSuperGameFinish}
+              />
+            )}
           </div>
+        ) : (
+          /* STANDARD APPLICATION VIEWS */
+          <>
+            {/* STORE VIEW */}
+            {currentView === 'store' && <StoreView />}
+
+            {/* PROFILE VIEW */}
+            {currentView === 'profile' && <ProfileView />}
+
+            {/* ADMIN PANEL */}
+            {currentView === 'admin' && profile?.role === 'admin' && <AdminPanel />}
+
+            {/* WORLDS EXPLORER VIEW (DEFAULT HOME) */}
+            {currentView === 'worlds' && (
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+                
+                {/* Guest / Non-logged in Callout Banner */}
+                {!profile && (
+                  <div className="mb-8 p-4 sm:p-6 rounded-3xl bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950/80 border border-purple-500/40 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-start animate-pulse">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-white flex items-center justify-center sm:justify-start gap-2">
+                        <Sparkles className="w-5 h-5 text-amber-400" />
+                        <span>مرحباً بك في يوتوبيا (AG Utopia)!</span>
+                      </h3>
+                      <p className="text-xs text-slate-300 mt-1">
+                        سجل دخولك كـ AMOX أو أنشئ حسابك لحفظ إنجازاتك وكوينزاتك وتحدي أصدقائك في العوالم
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setAuthModalOpen(true)}
+                      className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 flex-shrink-0"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      <span>تسجيل الدخول / انضم للعب</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Hero Section */}
+                <div className="text-center mb-10">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 font-bold text-xs mb-3 shadow-[0_0_15px_rgba(147,51,234,0.3)]">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>{t('chooseWorld')}</span>
+                  </div>
+                  <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-3">
+                    عوالم الأنمي والألعاب الكبرى
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+                    اختر عالمك المفضل وانطلق في تحديات التريفيا، الصح والخطأ، ولعبة من أنا التنافسية
+                  </p>
+                </div>
+
+                {/* Chaos Realm Crown Jewel */}
+                <div className="mb-10">
+                  <ChaosRealmCard
+                    onOpenWorldModal={handleOpenWorldModal}
+                  />
+                </div>
+
+                {/* Category Filters Bar */}
+                <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-8">
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-purple-400" />
+                    <span>العوالم المتاحة</span>
+                  </h2>
+
+                  <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                    <button
+                      onClick={() => setActiveCategoryFilter('all')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        activeCategoryFilter === 'all'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {t('allWorlds')}
+                    </button>
+                    <button
+                      onClick={() => setActiveCategoryFilter('anime')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        activeCategoryFilter === 'anime'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Film className="w-3.5 h-3.5" />
+                      <span>{t('animeOnly')}</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveCategoryFilter('games')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        activeCategoryFilter === 'games'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Gamepad2 className="w-3.5 h-3.5" />
+                      <span>{t('gamesOnly')}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Standard Worlds Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredWorlds
+                    .filter(w => w.id !== 'chaos_realm')
+                    .map(world => (
+                      <WorldCard
+                        key={world.id}
+                        world={world}
+                        onOpen={handleOpenWorldModal}
+                      />
+                    ))}
+                </div>
+
+              </div>
+            )}
+          </>
         )}
-
-        {/* VIEW 2: Store */}
-        {currentView === 'store' && <StoreView />}
-
-        {/* VIEW 3: Profile */}
-        {currentView === 'profile' && <ProfileView />}
-
-        {/* VIEW 4: Admin Panel */}
-        {currentView === 'admin' && <AdminPanel />}
 
       </main>
 
@@ -295,14 +319,16 @@ const MainAppContent: React.FC = () => {
       <FriendsModal
         isOpen={friendsModalOpen}
         onClose={() => setFriendsModalOpen(false)}
-        openChatForFriend={(f) => openChat(f)}
+        openChatForFriend={openChat}
       />
 
-      <ChatModal
-        isOpen={!!activeChatFriend}
-        friend={activeChatFriend}
-        onClose={closeChat}
-      />
+      {activeChatFriend && (
+        <ChatModal
+          isOpen={Boolean(activeChatFriend)}
+          friend={activeChatFriend}
+          onClose={closeChat}
+        />
+      )}
 
       <SuggestionsModal
         isOpen={suggestionsModalOpen}
@@ -314,19 +340,42 @@ const MainAppContent: React.FC = () => {
         onClose={() => setReportModalOpen(false)}
       />
 
-      <WorldModal
-        world={activeWorldId ? getWorldById(activeWorldId) || null : null}
-        isOpen={worldModalOpen}
-        onClose={() => setWorldModalOpen(false)}
-        openMatchmakingModal={handleOpenMatchmaking}
-      />
+      {activeWorld && (
+        <WorldModal
+          isOpen={worldModalOpen}
+          world={activeWorld}
+          onClose={() => setWorldModalOpen(false)}
+          openMatchmakingModal={handleOpenMatchmaking}
+        />
+      )}
 
-      <MatchmakingModal
-        worldId={activeWorldId || 'chaos_realm'}
-        difficulty={matchmakingDiff}
-        isOpen={matchmakingModalOpen}
-        onClose={() => setMatchmakingModalOpen(false)}
-      />
+      {activeWorld && (
+        <MatchmakingModal
+          isOpen={matchmakingModalOpen}
+          worldId={activeWorld.id}
+          difficulty={matchmakingDiff}
+          onClose={() => setMatchmakingModalOpen(false)}
+        />
+      )}
+
+      {lastMatchResult && (
+        <VictoryModal
+          isOpen={victoryModalOpen}
+          won={lastMatchResult.won}
+          score={lastMatchResult.score}
+          opponentScore={lastMatchResult.oppScore}
+          xpEarned={lastMatchResult.xpEarned}
+          coinsEarned={lastMatchResult.coinsEarned}
+          onClose={() => {
+            setVictoryModalOpen(false);
+            exitGame();
+          }}
+          onPlayAgain={() => {
+            setVictoryModalOpen(false);
+            exitGame();
+          }}
+        />
+      )}
 
       {/* Footer */}
       <Footer

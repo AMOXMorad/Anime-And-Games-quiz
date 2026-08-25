@@ -22,7 +22,7 @@ interface SocialContextType {
   upvoteSuggestion: (id: string) => void;
   submitReport: (type: 'player_report' | 'bug_report' | 'question_error', title: string, details: string, reportedUserId?: string) => void;
   // Admin Methods
-  adminSendGift: (userId: string, coins: number, title_ar: string, title_en: string, msg_ar: string, msg_en: string, itemId?: string) => void;
+  adminSendGift: (userId: string, coins: number, title_ar: string, title_en: string, msg_ar: string, msg_en: string, item?: StoreItem) => void;
   adminBanUser: (userId: string, reason: string) => void;
   adminResolveReport: (reportId: string) => void;
   adminUpdateSuggestionStatus: (id: string, status: 'under_review' | 'planned' | 'implemented' | 'declined') => void;
@@ -30,8 +30,22 @@ interface SocialContextType {
 
 const SocialContext = createContext<SocialContextType | null>(null);
 
+const DEFAULT_WELCOME_NOTIF: UserNotification = {
+  id: 'notif_welcome',
+  user_id: 'current',
+  sender_admin_id: 'founder_admin',
+  title_ar: '🎁 هدية ترحيبية من مؤسس يوتوبيا!',
+  title_en: '🎁 Welcome Gift from The Grand Founder!',
+  message_ar: 'أهلاً بك في منصة AG Utopia! استلم 200 عملة مجانية كهدية انضمام لتخوض بها أولى مبارياتك وتشتري إطارك المفضل من المتجر.',
+  message_en: 'Welcome to AG Utopia! Claim 200 free coins as a newcomer bonus to conquer your first matches and customize your profile in the Store.',
+  gift_coins: 200,
+  is_claimed: false,
+  is_read: false,
+  created_at: new Date().toISOString()
+};
+
 export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { profile, updateCoins, buyItem } = useAuth();
+  const { profile, updateCoins } = useAuth();
   
   // Seed demo friends
   const [friends, setFriends] = useState<Friendship[]>([
@@ -48,9 +62,9 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         is_guest: false,
         role: 'user',
         is_banned: false,
-        coins: 2400,
-        xp: 3200,
-        level: 18,
+        coins: 1400,
+        xp: 1200,
+        level: 14,
         active_frame_id: 'frame_sharingan',
         active_tag_id: 'tag_shinobi_flame',
         active_title_id: 'title_king_shinobi',
@@ -74,9 +88,9 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         is_guest: false,
         role: 'user',
         is_banned: false,
-        coins: 1800,
-        xp: 2100,
-        level: 12,
+        coins: 800,
+        xp: 900,
+        level: 11,
         active_frame_id: 'frame_curse_flame',
         active_tag_id: 'tag_rezero_apple',
         active_title_id: 'title_death_return',
@@ -89,22 +103,29 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   ]);
 
-  // Notifications (Includes welcome gifts from Admin / Founder)
-  const [notifications, setNotifications] = useState<UserNotification[]>([
-    {
-      id: 'notif_welcome',
-      user_id: 'current',
-      sender_admin_id: 'founder_admin',
-      title_ar: '🎁 هدية ترحيبية من مؤسس يوتوبيا!',
-      title_en: '🎁 Welcome Gift from The Grand Founder!',
-      message_ar: 'أهلاً بك في منصة AG Utopia! استلم 500 عملة مجانية كهدية انضمام لتخوض بها أولى مبارياتك وتشتري إطارك المفضل من المتجر.',
-      message_en: 'Welcome to AG Utopia! Claim 500 free coins as a newcomer bonus to conquer your first matches and customize your profile in the Store.',
-      gift_coins: 500,
-      is_claimed: false,
-      is_read: false,
-      created_at: new Date().toISOString()
+  // Notifications (with persistent claim state)
+  const [notifications, setNotifications] = useState<UserNotification[]>(() => {
+    try {
+      const claimedIds: string[] = JSON.parse(localStorage.getItem('ag_utopia_claimed_notifs') || '[]');
+      const customNotifs: UserNotification[] = JSON.parse(localStorage.getItem('ag_utopia_custom_notifications') || '[]');
+      
+      const welcome = {
+        ...DEFAULT_WELCOME_NOTIF,
+        is_claimed: claimedIds.includes(DEFAULT_WELCOME_NOTIF.id),
+        is_read: claimedIds.includes(DEFAULT_WELCOME_NOTIF.id)
+      };
+
+      const customWithClaimed = customNotifs.map(n => ({
+        ...n,
+        is_claimed: claimedIds.includes(n.id) || n.is_claimed,
+        is_read: claimedIds.includes(n.id) || n.is_read
+      }));
+
+      return [welcome, ...customWithClaimed];
+    } catch (e) {
+      return [DEFAULT_WELCOME_NOTIF];
     }
-  ]);
+  });
 
   // Community Suggestions
   const [suggestions, setSuggestions] = useState<Suggestion[]>([
@@ -169,7 +190,6 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setChatMessages(prev => [...prev, newMsg]);
     sounds.playClick();
 
-    // Simulated quick reply from friend after 1.5s
     setTimeout(() => {
       const replyMsg: ChatMessage = {
         id: 'msg_reply_' + Math.random().toString(36).substring(2, 9),
@@ -185,9 +205,9 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const sendFriendRequest = (tagOrName: string): { success: boolean; message: string } => {
-    if (!tagOrName.trim()) return { success: false, message: 'Invalid input' };
+    if (!tagOrName.trim()) return { success: false, message: 'يرجى إدخال اسم أو تاغ صالح' };
     sounds.playClick();
-    return { success: true, message: 'Friend request sent successfully!' };
+    return { success: true, message: 'تم إرسال طلب الصداقة بنجاح!' };
   };
 
   const respondFriendRequest = (friendshipId: string, accept: boolean) => {
@@ -204,6 +224,18 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (notif.gift_coins > 0) {
       updateCoins(notif.gift_coins);
     }
+
+    // Persist claim in localStorage
+    try {
+      const claimedIds: string[] = JSON.parse(localStorage.getItem('ag_utopia_claimed_notifs') || '[]');
+      if (!claimedIds.includes(notificationId)) {
+        claimedIds.push(notificationId);
+        localStorage.setItem('ag_utopia_claimed_notifs', JSON.stringify(claimedIds));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
     setNotifications(prev =>
       prev.map(n => (n.id === notificationId ? { ...n, is_claimed: true, is_read: true } : n))
     );
@@ -262,10 +294,10 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       reporter_profile: profile || undefined
     };
     setReports(prev => [newRep, ...prev]);
-    sounds.playClick();
+    sounds.playWrong();
   };
 
-  // Admin capabilities
+  // Admin Methods
   const adminSendGift = (
     userId: string,
     coins: number,
@@ -273,37 +305,55 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     title_en: string,
     msg_ar: string,
     msg_en: string,
-    itemId?: string
+    item?: StoreItem
   ) => {
     const newNotif: UserNotification = {
-      id: 'gift_' + Math.random().toString(36).substring(2, 9),
+      id: 'notif_gift_' + Math.random().toString(36).substring(2, 9),
       user_id: userId,
-      sender_admin_id: profile?.id,
+      sender_admin_id: profile?.id || 'admin',
       title_ar,
       title_en,
       message_ar: msg_ar,
       message_en: msg_en,
       gift_coins: coins,
-      gift_item_id: itemId,
+      gift_item_id: item?.id,
+      gift_item: item,
       is_claimed: false,
       is_read: false,
       created_at: new Date().toISOString()
     };
+
     setNotifications(prev => [newNotif, ...prev]);
-    sounds.playVictory();
+
+    // Persist custom notification in localStorage
+    try {
+      const customNotifs: UserNotification[] = JSON.parse(localStorage.getItem('ag_utopia_custom_notifications') || '[]');
+      customNotifs.unshift(newNotif);
+      localStorage.setItem('ag_utopia_custom_notifications', JSON.stringify(customNotifs.slice(0, 50)));
+    } catch (e) {
+      console.error(e);
+    }
+
+    sounds.playClaim();
+    confetti({ particleCount: 100, spread: 80 });
   };
 
-  const adminBanUser = (_userId: string, _reason: string) => {
+  const adminBanUser = (userId: string, reason: string) => {
     sounds.playWrong();
+    alert(`تم حظر المستخدم ${userId} بنجاح! السبب: ${reason}`);
   };
 
   const adminResolveReport = (reportId: string) => {
-    setReports(prev => prev.map(r => (r.id === reportId ? { ...r, status: 'resolved' } : r)));
+    setReports(prev =>
+      prev.map(r => (r.id === reportId ? { ...r, status: 'resolved' } : r))
+    );
     sounds.playClick();
   };
 
   const adminUpdateSuggestionStatus = (id: string, status: 'under_review' | 'planned' | 'implemented' | 'declined') => {
-    setSuggestions(prev => prev.map(s => (s.id === id ? { ...s, status } : s)));
+    setSuggestions(prev =>
+      prev.map(s => (s.id === id ? { ...s, status } : s))
+    );
     sounds.playClick();
   };
 

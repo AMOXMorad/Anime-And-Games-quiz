@@ -25,6 +25,8 @@ const SIZE_MAP = {
   '2xl': 'w-32 h-32 text-2xl'
 };
 
+const DEFAULT_AVATAR = 'https://s4.anilist.co/file/anilistcdn/character/large/b17-phjcWCkRuIhu.png';
+
 export const AvatarWithFrame: React.FC<AvatarWithFrameProps> = ({
   avatarUrl,
   frameId = 'frame_default',
@@ -33,15 +35,19 @@ export const AvatarWithFrame: React.FC<AvatarWithFrameProps> = ({
 }) => {
   const frameClass = FRAME_STYLES[frameId] || FRAME_STYLES.frame_default;
   const sizeClass = SIZE_MAP[size];
+  const src = avatarUrl && !avatarUrl.includes('unsplash.com') ? avatarUrl : DEFAULT_AVATAR;
 
   return (
     <div className={`relative inline-block rounded-full p-0.5 ${frameClass} ${className} transition-all duration-300`}>
-      <div className={`${sizeClass} rounded-full overflow-hidden bg-slate-800 flex items-center justify-center`}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-        ) : (
-          <span className="font-bold text-slate-300">AG</span>
-        )}
+      <div className={`${sizeClass} rounded-full overflow-hidden bg-slate-900 flex items-center justify-center`}>
+        <img 
+          src={src} 
+          alt="Avatar" 
+          className="w-full h-full object-cover" 
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = DEFAULT_AVATAR;
+          }}
+        />
       </div>
     </div>
   );

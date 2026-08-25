@@ -14,11 +14,11 @@ export interface LocalizedString {
 export interface Character {
   id: string;
   name: LocalizedString;
-  avatar: string; // High-res transparent render
+  avatar: string; // High-res transparent render or AI portrait
   gender: 'male' | 'female' | 'other';
-  role: LocalizedString; // e.g. Hokage, Shinobi, Spirit Knight, Maid, Witch
-  powerType: LocalizedString; // e.g. Ninjutsu/Sage, Yin Magic/Sword, Curse
-  affiliation: LocalizedString; // e.g. Hidden Leaf Village, Roswaal Mansion, Lugnica
+  role: LocalizedString;
+  powerType: LocalizedString;
+  affiliation: LocalizedString;
   clues: {
     easy: LocalizedString[];
     medium: LocalizedString[];
@@ -34,7 +34,7 @@ export interface TriviaQuestion {
   options: [LocalizedString, LocalizedString, LocalizedString, LocalizedString];
   correctIndex: number;
   explanation?: LocalizedString;
-  image?: string; // High quality scene or character shot
+  image?: string;
 }
 
 export interface TrueFalseQuestion {
@@ -53,8 +53,8 @@ export interface World {
   tagline: LocalizedString;
   description: LocalizedString;
   icon: string;
-  banner: string; // Official high-res key visual
-  themeColor: string; // Tailored accent color (e.g. #f97316 for Naruto, #a855f7 for Re:Zero)
+  banner: string;
+  themeColor: string;
   accentGlow: string;
   characters: Character[];
   triviaQuestions: TriviaQuestion[];
@@ -62,7 +62,8 @@ export interface World {
 }
 
 export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary';
-export type ItemType = 'frame' | 'tag' | 'title';
+export type ItemType = 'frame' | 'tag' | 'title' | 'avatar';
+export type UnlockType = 'store' | 'code' | 'level' | 'gift';
 
 export interface StoreItem {
   id: string;
@@ -73,7 +74,12 @@ export interface StoreItem {
   description_en: string;
   price: number;
   rarity: ItemRarity;
-  asset_url?: string;
+  asset_url?: string; // Image URL / PNG or emoji
+  avatar_category?: 'naruto' | 'rezero' | 'games' | 'chaos';
+  unlock_type?: UnlockType;
+  required_level?: number;
+  redeem_code?: string;
+  target_user_tag?: string;
   css_style?: {
     border?: string;
     bg?: string;
@@ -82,6 +88,25 @@ export interface StoreItem {
     glow?: string;
   };
   is_active: boolean;
+}
+
+export type PromoExpiryType = 'permanent' | 'date_limited' | 'uses_limited';
+
+export interface PromoCode {
+  id: string;
+  code: string; // e.g. "UTOPIA2026", "AMOX_VIP"
+  reward_coins: number;
+  reward_item_id?: string;
+  reward_item?: StoreItem;
+  description_ar: string;
+  description_en: string;
+  expiry_type: PromoExpiryType;
+  expires_at?: string; // e.g. "2026-12-31"
+  max_uses?: number; // Total max redemptions (e.g. 1 for single-use, 10 for limited batch)
+  current_uses: number; // Current number of times redeemed
+  redeemed_by_users: string[]; // List of user IDs or tags who redeemed
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface UserStats {
@@ -105,12 +130,16 @@ export interface Profile {
   coins: number;
   xp: number;
   level: number;
+  avatar_url?: string;
+  active_avatar_id?: string;
   active_frame_id: string;
   active_tag_id: string;
   active_title_id: string;
   showcase_titles: string[]; // up to 5
   showcase_tags: string[];   // up to 5
   showcase_frames: string[]; // up to 5
+  showcase_avatars?: string[]; // up to 5
+  redeemed_codes?: string[]; // Promo codes redeemed by this user
   stats: UserStats;
   created_at: string;
 }
@@ -169,10 +198,10 @@ export interface UserNotification {
   message_en: string;
   gift_coins: number;
   gift_item_id?: string;
+  gift_item?: StoreItem;
   is_claimed: boolean;
   is_read: boolean;
   created_at: string;
-  gift_item?: StoreItem;
 }
 
 export interface GameRoom {

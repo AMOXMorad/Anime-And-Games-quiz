@@ -53,8 +53,14 @@ export const Navbar: React.FC<NavbarProps> = ({
     setLang(lang === 'ar' ? 'en' : 'ar');
   };
 
+  const handleLogout = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    sounds.playClick();
+    logout();
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
+    <header className="sticky top-0 z-40 bg-slate-950/85 backdrop-blur-md border-b border-slate-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
         {/* Brand Logo */}
@@ -93,61 +99,64 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => { setCurrentView('store'); sounds.playClick(); }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               currentView === 'store'
                 ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(147,51,234,0.4)]'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <ShoppingBag className="w-3.5 h-3.5" />
-            {t('shop')}
+            <span>{t('store')}</span>
           </button>
 
-          <button
-            onClick={() => { setCurrentView('profile'); sounds.playClick(); }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              currentView === 'profile'
-                ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(147,51,234,0.4)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            {t('profile')}
-          </button>
+          {profile && (
+            <button
+              onClick={() => { setCurrentView('profile'); sounds.playClick(); }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                currentView === 'profile'
+                  ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(147,51,234,0.4)]'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>{t('profile')}</span>
+            </button>
+          )}
 
           <button
-            onClick={openFriendsModal}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all"
+            onClick={() => { openFriendsModal(); sounds.playClick(); }}
+            className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5"
           >
             <Users className="w-3.5 h-3.5" />
-            {t('friends')}
+            <span>{t('friends')}</span>
           </button>
 
           <button
-            onClick={openSuggestionsModal}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all"
+            onClick={() => { openSuggestionsModal(); sounds.playClick(); }}
+            className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5"
           >
-            <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-            {t('suggestions')}
+            <Lightbulb className="w-3.5 h-3.5" />
+            <span>{t('community')}</span>
           </button>
 
+          {/* Admin Control Center Link (Only visible to Grand Founder / Admin) */}
           {profile?.role === 'admin' && (
             <button
               onClick={() => { setCurrentView('admin'); sounds.playClick(); }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 border ${
                 currentView === 'admin'
-                  ? 'bg-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.5)] animate-pulse'
-                  : 'text-rose-400 hover:text-white hover:bg-rose-950/40'
+                  ? 'bg-rose-600 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.5)]'
+                  : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/60'
               }`}
             >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              {t('adminPanel')}
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>لوحة الأدمن</span>
             </button>
           )}
         </nav>
 
         {/* Right Section: Coins, Notifications, Settings, Profile */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           
           {/* Coins Display */}
           {profile && (
@@ -165,18 +174,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Notification Inbox Bell */}
-          <button
-            onClick={openNotifications}
-            className="relative p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
-            title={t('notifications')}
-          >
-            <Bell className="w-4 h-4" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -end-1 w-4 h-4 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center animate-bounce shadow-md">
-                {unreadCount}
-              </span>
-            )}
-          </button>
+          {profile && (
+            <button
+              onClick={openNotifications}
+              className="relative p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+              title={t('notifications')}
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -end-1 w-4 h-4 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center animate-bounce shadow-md">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Sound Mute Toggle */}
           <button
@@ -197,26 +208,43 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
           </button>
 
-          {/* Profile / Auth Button */}
-          {profile ? (
-            <div 
-              onClick={() => { setCurrentView('profile'); sounds.playClick(); }}
-              className="flex items-center gap-2 cursor-pointer p-1 rounded-full hover:bg-slate-800/60 transition-all"
-            >
-              <AvatarWithFrame frameId={profile.active_frame_id} size="sm" />
-              <div className="hidden lg:block text-start">
-                <div className="text-xs font-bold text-white leading-none">{profile.username}</div>
-                <div className="text-[10px] text-purple-400 font-medium">#{profile.tag}</div>
-              </div>
-            </div>
-          ) : (
+          {/* Profile / Auth Section */}
+          {!profile ? (
             <button
               onClick={openAuthModal}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black px-4 py-2 rounded-xl shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all animate-pulse"
             >
-              <LogIn className="w-3.5 h-3.5" />
-              {t('login')}
+              <LogIn className="w-4 h-4" />
+              <span>{t('login')} / انضم للعب</span>
             </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div 
+                onClick={() => { setCurrentView('profile'); sounds.playClick(); }}
+                className="flex items-center gap-2 cursor-pointer p-1 rounded-full hover:bg-slate-800/60 transition-all"
+                title="الملف الشخصي"
+              >
+                <AvatarWithFrame 
+                  avatarUrl={profile.avatar_url} 
+                  frameId={profile.active_frame_id} 
+                  size="sm" 
+                />
+                <div className="hidden lg:block text-start">
+                  <div className="text-xs font-bold text-white leading-none">{profile.username}</div>
+                  <div className="text-[10px] text-purple-400 font-medium">#{profile.tag}</div>
+                </div>
+              </div>
+
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 bg-slate-900 border border-slate-800 hover:border-rose-500/50 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-all"
+                title="تسجيل الخروج"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">خروج</span>
+              </button>
+            </div>
           )}
 
         </div>

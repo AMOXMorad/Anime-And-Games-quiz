@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Profile, StoreItem } from '../types';
+import { Profile, StoreItem, PromoCode } from '../types';
 import { generateUserTag } from '../lib/supabase';
 import { calculateLevel } from '../lib/ranks';
 import { sounds } from '../lib/sound';
@@ -15,14 +15,46 @@ interface AuthContextType {
   logout: () => void;
   updateCoins: (amount: number) => void;
   addXp: (amount: number) => { levelUp: boolean; newLevel: number; rewardCoins: number };
-  equipItem: (itemId: string, type: 'frame' | 'tag' | 'title') => void;
-  updateShowcases: (type: 'titles' | 'tags' | 'frames', items: string[]) => void;
+  equipItem: (itemId: string, type: 'frame' | 'tag' | 'title' | 'avatar', assetUrl?: string) => void;
+  updateShowcases: (type: 'titles' | 'tags' | 'frames' | 'avatars', items: string[]) => void;
   updateStats: (win: boolean, correctCount: number, mode: 'who_am_i' | 'trivia' | 'super') => void;
   buyItem: (item: StoreItem) => { success: boolean; message: string };
+  redeemPromoCode: (code: string, storeItems: StoreItem[]) => { success: boolean; message: string; item?: StoreItem; coins?: number };
   setAdminRole: (role: 'user' | 'admin' | 'moderator') => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+const ADMIN_USERNAME = 'AMOX';
+const ADMIN_PASSWORD = 'Between-The-Earth-And-Sky-Iam-The-Honored-One-AMOX2000';
+
+export const INITIAL_PROMO_CODES: PromoCode[] = [
+  {
+    id: 'promo_utopia_welcome',
+    code: 'UTOPIA2026',
+    reward_coins: 300,
+    description_ar: 'كود ترويجي دائم يمنح 300 كوينز مجاناً لجميع اللاعبين (استخدام واحد لكل حساب)',
+    description_en: 'Permanent promo code granting 300 free coins for all players',
+    expiry_type: 'permanent',
+    current_uses: 0,
+    redeemed_by_users: [],
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'promo_amox_vip',
+    code: 'AMOX_VIP',
+    reward_coins: 500,
+    description_ar: 'كود VIP خاص ومحدود لأول 20 مستخدم فقط!',
+    description_en: 'Exclusive VIP code limited to the first 20 users',
+    expiry_type: 'uses_limited',
+    max_uses: 20,
+    current_uses: 0,
+    redeemed_by_users: [],
+    is_active: true,
+    created_at: new Date().toISOString()
+  }
+];
 
 const DEFAULT_PROFILE: Profile = {
   id: 'guest_' + Math.random().toString(36).substring(2, 9),
@@ -31,15 +63,19 @@ const DEFAULT_PROFILE: Profile = {
   is_guest: true,
   role: 'user',
   is_banned: false,
-  coins: 300,
+  coins: 150,
   xp: 0,
   level: 1,
+  avatar_url: 'https://s4.anilist.co/file/anilistcdn/character/large/b17-phjcWCkRuIhu.png',
+  active_avatar_id: 'avatar_default',
   active_frame_id: 'frame_default',
   active_tag_id: 'tag_rookie',
   active_title_id: 'title_novice',
   showcase_titles: ['title_novice'],
   showcase_tags: ['tag_rookie'],
   showcase_frames: ['frame_default'],
+  showcase_avatars: ['avatar_default'],
+  redeemed_codes: [],
   stats: {
     totalMatches: 0,
     wins: 0,
@@ -55,28 +91,29 @@ const DEFAULT_PROFILE: Profile = {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [inventory, setInventory] = useState<string[]>([
+    'avatar_default',
     'frame_default',
     'tag_rookie',
     'title_novice'
   ]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load cloud or initial session
+  // Load session only if explicitly saved previously
   useEffect(() => {
     const saved = localStorage.getItem('ag_utopia_session');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        if (parsed.profile?.avatar_url?.includes('unsplash.com') || parsed.profile?.avatar_url?.includes('myanimelist.net/images/characters/12/29795.jpg')) {
+          parsed.profile.avatar_url = 'https://s4.anilist.co/file/anilistcdn/character/large/b17-phjcWCkRuIhu.png';
+        }
         setProfile(parsed.profile);
-        setInventory(parsed.inventory || ['frame_default', 'tag_rookie', 'title_novice']);
+        setInventory(parsed.inventory || ['avatar_default', 'frame_default', 'tag_rookie', 'title_novice']);
       } catch (e) {
-        setProfile(DEFAULT_PROFILE);
+        setProfile(null);
       }
     } else {
-      // Auto create guest cloud session
-      const initial = { ...DEFAULT_PROFILE, tag: generateUserTag() };
-      setProfile(initial);
-      localStorage.setItem('ag_utopia_session', JSON.stringify({ profile: initial, inventory }));
+      setProfile(null);
     }
     setIsLoading(false);
   }, []);
@@ -89,39 +126,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const guest: Profile = {
       ...DEFAULT_PROFILE,
       id: 'guest_' + Math.random().toString(36).substring(2, 9),
-      username: customName || `Guest_${Math.floor(100 + Math.random() * 900)}`,
+      username: customName || `Challenger_${Math.floor(100 + Math.random() * 900)}`,
       tag: generateUserTag(),
       is_guest: true,
+      redeemed_codes: [],
       created_at: new Date().toISOString()
     };
     setProfile(guest);
-    setInventory(['frame_default', 'tag_rookie', 'title_novice']);
-    saveSession(guest, ['frame_default', 'tag_rookie', 'title_novice']);
+    setInventory(['avatar_default', 'frame_default', 'tag_rookie', 'title_novice']);
+    saveSession(guest, ['avatar_default', 'frame_default', 'tag_rookie', 'title_novice']);
     sounds.playClick();
     return guest;
   };
 
-  const loginWithEmail = async (email: string, _pass: string) => {
-    const username = email.split('@')[0];
-    const isAdmin = username.toLowerCase() === 'admin' || username.toLowerCase() === 'founder';
+  const loginWithEmail = async (email: string, pass: string) => {
+    const cleanUser = email.split('@')[0].trim();
+    const isAttemptingAdmin = cleanUser.toUpperCase() === ADMIN_USERNAME.toUpperCase();
+
+    if (isAttemptingAdmin) {
+      if (pass !== ADMIN_PASSWORD) {
+        sounds.playWrong();
+        throw new Error('كلمة المرور غير صحيحة لحساب المشرف العام AMOX!');
+      }
+
+      const adminProfile: Profile = {
+        ...DEFAULT_PROFILE,
+        id: 'usr_founder_amox',
+        username: 'AMOX',
+        tag: '0001',
+        is_guest: false,
+        role: 'admin',
+        active_frame_id: 'frame_founder_exclusive',
+        active_tag_id: 'tag_founder_trident',
+        active_title_id: 'title_founder',
+        active_avatar_id: 'avatar_madara_void',
+        avatar_url: 'https://s4.anilist.co/file/anilistcdn/character/large/b53901-HnRKSoHMG5Vg.png',
+        coins: 99999,
+        xp: 99999,
+        level: 999,
+        redeemed_codes: []
+      };
+
+      const adminInv = [
+        'avatar_default',
+        'avatar_madara_void',
+        'frame_default',
+        'frame_founder_exclusive',
+        'tag_rookie',
+        'tag_founder_trident',
+        'title_novice',
+        'title_founder'
+      ];
+
+      setProfile(adminProfile);
+      setInventory(adminInv);
+      saveSession(adminProfile, adminInv);
+      sounds.playVictory();
+      confetti({ particleCount: 100, spread: 80 });
+      return;
+    }
+
+    // Normal User Login
     const userProfile: Profile = {
       ...DEFAULT_PROFILE,
       id: 'usr_' + Math.random().toString(36).substring(2, 9),
-      username: username,
+      username: cleanUser,
       tag: generateUserTag(),
       is_guest: false,
-      role: isAdmin ? 'admin' : 'user',
-      active_frame_id: isAdmin ? 'frame_founder_exclusive' : 'frame_default',
-      active_tag_id: isAdmin ? 'tag_founder_trident' : 'tag_rookie',
-      active_title_id: isAdmin ? 'title_founder' : 'title_novice',
-      coins: isAdmin ? 99999 : 500,
-      xp: isAdmin ? 15000 : 100,
-      level: isAdmin ? 999 : 2
+      role: 'user',
+      coins: 250,
+      xp: 80,
+      level: 2,
+      redeemed_codes: []
     };
-    const inv = isAdmin
-      ? ['frame_default', 'frame_founder_exclusive', 'tag_rookie', 'tag_founder_trident', 'title_novice', 'title_founder']
-      : ['frame_default', 'tag_rookie', 'title_novice'];
 
+    const inv = ['avatar_default', 'frame_default', 'tag_rookie', 'title_novice'];
     setProfile(userProfile);
     setInventory(inv);
     saveSession(userProfile, inv);
@@ -129,15 +208,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const registerWithEmail = async (username: string, _email: string, _pass: string) => {
+    const cleanUser = username.trim();
+    if (cleanUser.toUpperCase() === ADMIN_USERNAME.toUpperCase()) {
+      sounds.playWrong();
+      throw new Error('اسم المستخدم AMOX مخصص ومحجوز للمشرف العام فقط!');
+    }
+
     const userProfile: Profile = {
       ...DEFAULT_PROFILE,
       id: 'usr_' + Math.random().toString(36).substring(2, 9),
-      username,
+      username: cleanUser,
       tag: generateUserTag(),
       is_guest: false,
-      coins: 400
+      coins: 200,
+      redeemed_codes: []
     };
-    const inv = ['frame_default', 'tag_rookie', 'title_novice'];
+    const inv = ['avatar_default', 'frame_default', 'tag_rookie', 'title_novice'];
     setProfile(userProfile);
     setInventory(inv);
     saveSession(userProfile, inv);
@@ -145,7 +231,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    loginAsGuest();
+    setProfile(null);
+    localStorage.removeItem('ag_utopia_session');
+    sounds.playClick();
   };
 
   const updateCoins = (amount: number) => {
@@ -166,11 +254,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (newLevel > oldLevel) {
       levelUp = true;
-      rewardCoins = (newLevel - oldLevel) * 150;
+      rewardCoins = (newLevel - oldLevel) * 40;
       sounds.playLevelUp();
       confetti({
-        particleCount: 100,
-        spread: 80,
+        particleCount: 80,
+        spread: 70,
         origin: { y: 0.6 }
       });
     }
@@ -187,24 +275,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { levelUp, newLevel, rewardCoins };
   };
 
-  const equipItem = (itemId: string, type: 'frame' | 'tag' | 'title') => {
+  const equipItem = (itemId: string, type: 'frame' | 'tag' | 'title' | 'avatar', assetUrl?: string) => {
     if (!profile) return;
     const updated = { ...profile };
     if (type === 'frame') updated.active_frame_id = itemId;
     if (type === 'tag') updated.active_tag_id = itemId;
     if (type === 'title') updated.active_title_id = itemId;
+    if (type === 'avatar') {
+      updated.active_avatar_id = itemId;
+      if (assetUrl) updated.avatar_url = assetUrl;
+    }
 
     setProfile(updated);
     saveSession(updated, inventory);
     sounds.playClick();
   };
 
-  const updateShowcases = (type: 'titles' | 'tags' | 'frames', items: string[]) => {
+  const updateShowcases = (type: 'titles' | 'tags' | 'frames' | 'avatars', items: string[]) => {
     if (!profile) return;
     const updated = { ...profile };
     if (type === 'titles') updated.showcase_titles = items.slice(0, 5);
     if (type === 'tags') updated.showcase_tags = items.slice(0, 5);
     if (type === 'frames') updated.showcase_frames = items.slice(0, 5);
+    if (type === 'avatars') updated.showcase_avatars = items.slice(0, 5);
 
     setProfile(updated);
     saveSession(updated, inventory);
@@ -231,13 +324,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const buyItem = (item: StoreItem): { success: boolean; message: string } => {
-    if (!profile) return { success: false, message: 'No profile' };
+    if (!profile) return { success: false, message: 'يرجى تسجيل الدخول أولاً لإجراء عمليات الشراء' };
     if (inventory.includes(item.id)) {
-      return { success: false, message: 'Item already owned' };
+      return { success: false, message: 'تمتلك هذا العنصر بالفعل' };
     }
+
+    if (item.unlock_type === 'level' && item.required_level && profile.level < item.required_level) {
+      sounds.playWrong();
+      return { success: false, message: `يتطلب هذا العنصر الوصول للمستوى ${item.required_level}` };
+    }
+
+    if (item.unlock_type === 'code') {
+      sounds.playWrong();
+      return { success: false, message: 'هذا العنصر حصري عبر كود ترويجي خاص فقط!' };
+    }
+
+    if (item.unlock_type === 'gift') {
+      sounds.playWrong();
+      return { success: false, message: 'هذا العنصر حصري كهدية خاصة يرسلها المؤسس فقط!' };
+    }
+
     if (profile.coins < item.price) {
       sounds.playWrong();
-      return { success: false, message: 'Not enough coins' };
+      return { success: false, message: 'لا تملك عملات كافية' };
     }
 
     const updatedCoins = profile.coins - item.price;
@@ -249,7 +358,153 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveSession(updatedProfile, updatedInv);
     sounds.playClaim();
     confetti({ particleCount: 60, spread: 60 });
-    return { success: true, message: 'Purchased successfully' };
+    return { success: true, message: 'تم الشراء بنجاح!' };
+  };
+
+  // Advanced Promo Code Engine: Single-use per account, date expiry, and max users limit
+  const redeemPromoCode = (
+    code: string,
+    storeItems: StoreItem[]
+  ): { success: boolean; message: string; item?: StoreItem; coins?: number } => {
+    if (!profile) {
+      sounds.playWrong();
+      return { success: false, message: 'يرجى تسجيل الدخول أولاً لاسترداد الأكواد' };
+    }
+
+    if (!code.trim()) {
+      return { success: false, message: 'يرجى إدخال الكود' };
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+
+    // 1. Check if user already redeemed this code
+    const userRedeemed = profile.redeemed_codes || [];
+    if (userRedeemed.includes(cleanCode)) {
+      sounds.playWrong();
+      return {
+        success: false,
+        message: '❌ لقد قمت باسترداد هذا الكود مسبقاً! كل كود صالح للاستخدام مرة واحدة فقط لكل حساب.'
+      };
+    }
+
+    // 2. Load promo codes list
+    let allPromoCodes: PromoCode[] = [];
+    try {
+      const saved = localStorage.getItem('ag_utopia_promo_codes');
+      allPromoCodes = saved ? JSON.parse(saved) : INITIAL_PROMO_CODES;
+    } catch (e) {
+      allPromoCodes = INITIAL_PROMO_CODES;
+    }
+
+    const matchedPromo = allPromoCodes.find(
+      p => p.code.toUpperCase() === cleanCode && p.is_active
+    );
+
+    // Also check if tied directly to a StoreItem with redeem_code
+    const matchedItem = storeItems.find(
+      i => i.redeem_code && i.redeem_code.toUpperCase() === cleanCode
+    );
+
+    if (!matchedPromo && !matchedItem) {
+      sounds.playWrong();
+      return { success: false, message: 'الكود غير صحيح أو غير مفعل' };
+    }
+
+    // 3. Verify Promo Code Expiration Constraints
+    if (matchedPromo) {
+      // Check date expiry
+      if (matchedPromo.expiry_type === 'date_limited' && matchedPromo.expires_at) {
+        const expiryDate = new Date(matchedPromo.expires_at);
+        if (new Date() > expiryDate) {
+          sounds.playWrong();
+          return {
+            success: false,
+            message: `⏰ انتهت صلاحية هذا الكود بتاريخ ${matchedPromo.expires_at}`
+          };
+        }
+      }
+
+      // Check max uses limit (e.g. for first 10 users or single use)
+      if (
+        (matchedPromo.expiry_type === 'uses_limited' || matchedPromo.max_uses) &&
+        matchedPromo.max_uses &&
+        matchedPromo.current_uses >= matchedPromo.max_uses
+      ) {
+        sounds.playWrong();
+        return {
+          success: false,
+          message: `🚫 عذراً! لقد تم استنفاد هذا الكود بالكامل (صالح لأول ${matchedPromo.max_uses} مستخدم فقط).`
+        };
+      }
+    }
+
+    // 4. Grant Rewards
+    let rewardCoins = 0;
+    let unlockedItem: StoreItem | undefined = undefined;
+    let newInventory = [...inventory];
+
+    if (matchedPromo) {
+      rewardCoins = matchedPromo.reward_coins || 0;
+      if (matchedPromo.reward_item_id) {
+        unlockedItem = storeItems.find(i => i.id === matchedPromo.reward_item_id);
+      }
+    }
+
+    if (matchedItem) {
+      unlockedItem = matchedItem;
+    }
+
+    if (unlockedItem && !newInventory.includes(unlockedItem.id)) {
+      newInventory.push(unlockedItem.id);
+    }
+
+    // 5. Update user session with redeemed code and balance
+    const updatedProfile: Profile = {
+      ...profile,
+      coins: profile.coins + rewardCoins,
+      redeemed_codes: [...userRedeemed, cleanCode]
+    };
+
+    setInventory(newInventory);
+    setProfile(updatedProfile);
+    saveSession(updatedProfile, newInventory);
+
+    // 6. Update Promo Code redemption stats in database
+    if (matchedPromo) {
+      const updatedPromos = allPromoCodes.map(p => {
+        if (p.id === matchedPromo.id) {
+          const updatedUses = p.current_uses + 1;
+          const updatedUsers = [...(p.redeemed_by_users || []), profile.id];
+          return {
+            ...p,
+            current_uses: updatedUses,
+            redeemed_by_users: updatedUsers,
+            is_active: p.max_uses ? updatedUses < p.max_uses : p.is_active
+          };
+        }
+        return p;
+      });
+      localStorage.setItem('ag_utopia_promo_codes', JSON.stringify(updatedPromos));
+    }
+
+    sounds.playClaim();
+    confetti({ particleCount: 100, spread: 80 });
+
+    let successMsg = `🎉 تم استرداد الكود بنجاح!`;
+    if (rewardCoins > 0 && unlockedItem) {
+      successMsg = `🎉 مبروك! حصلت على +${rewardCoins} كوينز وتم فتح: ${unlockedItem.name_ar}`;
+    } else if (rewardCoins > 0) {
+      successMsg = `🎉 مبروك! تم إضافة +${rewardCoins} عملة (Coins) لحسابك!`;
+    } else if (unlockedItem) {
+      successMsg = `🎉 مبروك! تم فتح: ${unlockedItem.name_ar}`;
+    }
+
+    return {
+      success: true,
+      message: successMsg,
+      item: unlockedItem,
+      coins: rewardCoins
+    };
   };
 
   const setAdminRole = (role: 'user' | 'admin' | 'moderator') => {
@@ -275,6 +530,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateShowcases,
         updateStats,
         buyItem,
+        redeemPromoCode,
         setAdminRole
       }}
     >

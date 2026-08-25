@@ -12,6 +12,17 @@ interface SuperRoundResult {
   roundType: 'true_false' | 'trivia' | 'who_am_i';
 }
 
+interface MatchRecord {
+  matchId: string;
+  roomCode: string;
+  worldId: string;
+  mode: string;
+  winner: 'player' | 'opponent';
+  playerFinalScore: number;
+  opponentFinalScore: number;
+  timestamp: string;
+}
+
 interface GameContextType {
   selectedWorld: World | null;
   selectedMode: GameModeType | null;
@@ -26,6 +37,7 @@ interface GameContextType {
   activeSuperRound: number;
   playerScore: number;
   opponentScore: number;
+  savedActiveRoomCode: string | null;
   
   // Setup & Navigation
   selectWorld: (worldId: string) => void;
@@ -36,8 +48,9 @@ interface GameContextType {
   startSuperMatchmaking: (worldId: string, diff: Difficulty) => void;
   createPrivateRoom: (worldId: string, diff: Difficulty) => string;
   joinPrivateRoom: (code: string) => { success: boolean; message: string };
+  reconnectToActiveRoom: () => boolean;
   cancelMatchmaking: () => void;
-  finishMatch: (playerFinalScore: number, opponentFinalScore: number) => { won: boolean; xpEarned: number; coinsEarned: number };
+  finishMatch: (playerFinalScore: number, opponentFinalScore: number) => { won: boolean; xpEarned: number; coinsEarned: number; matchRecordId: string };
   exitGame: () => void;
 }
 
@@ -95,6 +108,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isSuperMatchmaking, setIsSuperMatchmaking] = useState<boolean>(false);
   const [superRoomCode, setSuperRoomCode] = useState<string | null>(null);
+  const [savedActiveRoomCode, setSavedActiveRoomCode] = useState<string | null>(null);
   const [isHost, setIsHost] = useState<boolean>(true);
   const [opponentProfile, setOpponentProfile] = useState<Profile | null>(null);
 
@@ -102,6 +116,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [playerScore, setPlayerScore] = useState<number>(0);
   const [opponentScore, setOpponentScore] = useState<number>(0);
   const [superRoundsResults, setSuperRoundsResults] = useState<SuperRoundResult[]>([]);
+
+  // Check on load if an active room exists in localStorage for reconnection
+  useEffect(() => {
+    const savedRoom = localStorage.getItem('ag_utopia_active_room_code');
+    if (savedRoom) {
+      setSavedActiveRoomCode(savedRoom);
+    }
+  }, []);
 
   const selectWorld = (worldId: string) => {
     const w = getWorldById(worldId);
@@ -141,7 +163,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsSuperMatchmaking(true);
     sounds.playClick();
 
-    // Simulate matchmaking search & match finding after 2.5s
     setTimeout(() => {
       const opp = DEMO_OPPONENTS[Math.floor(Math.random() * DEMO_OPPONENTS.length)];
       setOpponentProfile(opp);
@@ -150,13 +171,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveSuperRound(1);
       setPlayerScore(0);
       setOpponentScore(0);
+
+      const tempCode = generateRoomCode(worldId.toUpperCase().slice(0, 4));
+      setSuperRoomCode(tempCode);
+      localStorage.setItem('ag_utopia_active_room_code', tempCode);
+      setSavedActiveRoomCode(tempCode);
+
       sounds.playMatchFound();
     }, 2500);
   };
 
   const createPrivateRoom = (worldId: string, diff: Difficulty): string => {
-    const code = generateRoomCode(worldId === 'naruto' ? 'NARUTO' : worldId === 're_zero' ? 'REZERO' : 'CHAOS');
+    const code = generateRoomCode(worldId === 'naruto' ? 'NARUTO' : worldId === 'rezero' ? 'REZERO' : 'CHAOS');
     setSuperRoomCode(code);
+    localStorage.setItem('ag_utopia_active_room_code', code);
+    setSavedActiveRoomCode(code);
     setIsHost(true);
     selectWorld(worldId);
     setSelectedMode('super_challenge');
@@ -166,8 +195,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const joinPrivateRoom = (code: string): { success: boolean; message: string } => {
-    if (!code.trim()) return { success: false, message: 'Invalid room code' };
-    setSuperRoomCode(code.toUpperCase());
+    if (!code.trim()) return { success: false, message: 'كود الغرفة غير صالح' };
+    const upper = code.toUpperCase().trim();
+    setSuperRoomCode(upper);
+    localStorage.setItem('ag_utopia_active_room_code', upper);
+    setSavedActiveRoomCode(upper);
     setIsHost(false);
     setSelectedMode('super_challenge');
     const opp = DEMO_OPPONENTS[0];
@@ -177,12 +209,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPlayerScore(0);
     setOpponentScore(0);
     sounds.playMatchFound();
-    return { success: true, message: 'Joined room successfully!' };
+    return { success: true, message: 'تم الانضمام للغرفة بنجاح!' };
+  };
+
+  const reconnectToActiveRoom = (): boolean => {
+    const activeCode = localStorage.getItem('ag_utopia_active_room_code');
+    if (!activeCode) return false;
+
+    setSuperRoomCode(activeCode);
+    setIsPlaying(true);
+    setSelectedMode('super_challenge');
+    if (!selectedWorld) {
+      setSelectedWorld(allWorlds[0]);
+    }
+    if (!opponentProfile) {
+      setOpponentProfile(DEMO_OPPONENTS[0]);
+    }
+    sounds.playVictory();
+    return true;
   };
 
   const cancelMatchmaking = () => {
     setIsSuperMatchmaking(false);
     setSuperRoomCode(null);
+    localStorage.removeItem('ag_utopia_active_room_code');
+    setSavedActiveRoomCode(null);
     sounds.playClick();
   };
 
@@ -202,13 +253,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateCoins(coinsEarned);
     updateStats(won, playerFinal, selectedMode === 'super_challenge' ? 'super' : selectedMode === 'who_am_i' ? 'who_am_i' : 'trivia');
 
+    // Archive Match with unique timestamped ID
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[-:T]/g, '').slice(0, 12);
+    const randHex = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const matchRecordId = `MATCH_${(selectedWorld?.id || 'WORLD').toUpperCase()}_${dateStr}_${randHex}`;
+
+    const matchRecord: MatchRecord = {
+      matchId: matchRecordId,
+      roomCode: superRoomCode || 'SOLO_ROOM',
+      worldId: selectedWorld?.id || 'world',
+      mode: selectedMode || 'mode',
+      winner: won ? 'player' : 'opponent',
+      playerFinalScore: playerFinal,
+      opponentFinalScore: opponentFinal,
+      timestamp: now.toISOString()
+    };
+
+    // Save to match archives & clear active room
+    try {
+      const existingRecords = JSON.parse(localStorage.getItem('ag_utopia_match_archives') || '[]');
+      existingRecords.unshift(matchRecord);
+      localStorage.setItem('ag_utopia_match_archives', JSON.stringify(existingRecords.slice(0, 50)));
+      localStorage.removeItem('ag_utopia_active_room_code');
+      setSavedActiveRoomCode(null);
+    } catch (e) {
+      console.error(e);
+    }
+
     if (won) {
       sounds.playVictory();
     } else {
       sounds.playWrong();
     }
 
-    return { won, xpEarned, coinsEarned };
+    return { won, xpEarned, coinsEarned, matchRecordId };
   };
 
   const exitGame = () => {
@@ -216,6 +295,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedMode(null);
     setOpponentProfile(null);
     setSuperRoomCode(null);
+    localStorage.removeItem('ag_utopia_active_room_code');
+    setSavedActiveRoomCode(null);
     sounds.playClick();
   };
 
@@ -229,6 +310,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPlaying,
         isSuperMatchmaking,
         superRoomCode,
+        savedActiveRoomCode,
         isHost,
         opponentProfile,
         superRoundsResults,
@@ -243,6 +325,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startSuperMatchmaking,
         createPrivateRoom,
         joinPrivateRoom,
+        reconnectToActiveRoom,
         cancelMatchmaking,
         finishMatch,
         exitGame
