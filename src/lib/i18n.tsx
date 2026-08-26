@@ -16,9 +16,13 @@ export const translations: Translations = {
   // Navbar
   home: { ar: 'الرئيسية والعوالم', en: 'Worlds' },
   shop: { ar: 'المتجر', en: 'Store' },
+  store: { ar: 'المتجر', en: 'Store' },
+  leaderboard: { ar: 'المتصدرين', en: 'Leaderboard' },
   profile: { ar: 'بروفايلي', en: 'Profile' },
   friends: { ar: 'الأصدقاء', en: 'Friends' },
+  community: { ar: 'اقتراحات المجتمع', en: 'Community' },
   suggestions: { ar: 'اقتراحات المجتمع', en: 'Suggestions' },
+  notifications: { ar: 'الإشعارات', en: 'Notifications' },
   adminPanel: { ar: 'لوحة التحكم', en: 'Admin Panel' },
   login: { ar: 'تسجيل الدخول', en: 'Login' },
   register: { ar: 'إنشاء حساب', en: 'Sign Up' },
@@ -26,9 +30,12 @@ export const translations: Translations = {
   logout: { ar: 'خروج', en: 'Logout' },
   
   // Categories & Chaos
+  chooseWorld: { ar: 'اختر عالمك المفضل', en: 'Choose Your World' },
   allWorlds: { ar: 'كافة العوالم', en: 'All Worlds' },
   anime: { ar: 'أنمي', en: 'Anime' },
   games: { ar: 'ألعاب', en: 'Games' },
+  animeOnly: { ar: 'عوالم الأنمي', en: 'Anime Worlds' },
+  gamesOnly: { ar: 'عوالم الألعاب', en: 'Game Worlds' },
   chaosRealm: { ar: 'عالم الفوضى الكونية', en: 'The Chaos Realm' },
   chaosSubtitle: { ar: 'امزج كل الأنمي والألعاب في ساحة أسئلة موحدة لا ترحم', en: 'Blend all anime & games into one relentless arena' },
   chaosAll: { ar: 'الفوضى الشاملة (كل شيء)', en: 'Absolute Chaos (All)' },
@@ -38,8 +45,8 @@ export const translations: Translations = {
   // Modes
   modeWhoAmI: { ar: 'من أنا؟ (خمن الشخصية)', en: 'Who Am I? (Deduction)' },
   modeWhoAmIDesc: { ar: 'تخمين استنتاجي ذكي؛ في الـ 1v1 كل لاعب يرى شخصية خصمه ويخمن شخصيته', en: 'Smart deduction; in 1v1 each player sees the opponent character and guesses their own' },
-  modeTrivia: { ar: 'تريفيا العالم والشخصيات', en: 'World & Lore Trivia' },
-  modeTriviaDesc: { ar: 'أسئلة اختيار من متعدد بمؤقت ونظام كومبو ومؤثرات حماسية', en: 'Timed 4-choice questions with combos and bonus multipliers' },
+  modeTrivia: { ar: 'الأسئلة العامة', en: 'General Questions' },
+  modeTriviaDesc: { ar: 'أسئلة عامة متنوعة باختيار من متعدد بمؤقت ونظام كومبو ومؤثرات حماسية', en: 'General multiple-choice trivia with combos and timers' },
   modeTrueFalse: { ar: 'صح أم خطأ (بليتز)', en: 'True or False (Blitz)' },
   modeTrueFalseDesc: { ar: 'جولات سريعة تعتمد على سرعة البديهة والتركيز اللحظي', en: 'High-octane rapid-fire questions testing your lightning reflexes' },
   modeSuperChallenge: { ar: 'تحدي الـ Super (1v1 لايف)', en: 'Super Challenge (1v1 Live)' },
@@ -67,8 +74,8 @@ export const translations: Translations = {
 
   // Shop & Inventory
   storeTitle: { ar: 'متجر يوتوبيا للجوائز والتخصيص', en: 'Utopia Rewards & Customization Store' },
-  storeSubtitle: { ar: 'ميّز نفسك بصور بروفايل AI احترافية، إطارات متوهجة، تيجان ملكية، وألقاب أسطورية', en: 'Stand out with AI character avatars, glowing frames, royal tags, and legendary titles' },
-  avatars: { ar: 'صور البروفايل (AI Art)', en: 'AI Profile Avatars' },
+  storeSubtitle: { ar: 'ميّز نفسك بصور بروفايل احترافية، إطارات متوهجة، تيجان ملكية، وألقاب أسطورية', en: 'Stand out with character avatars, glowing frames, royal tags, and legendary titles' },
+  avatars: { ar: 'صور الأفاتار والبروفايل', en: 'Profile Avatars' },
   frames: { ar: 'إطارات البروفايل', en: 'Avatar Frames' },
   tags: { ar: 'تيجان وشارات الاسم', en: 'Name Tags & Badges' },
   titles: { ar: 'الألقاب', en: 'Titles' },
@@ -86,7 +93,7 @@ export const translations: Translations = {
   showcaseTitles: { ar: 'معرض أفضل 5 ألقاب', en: 'Top 5 Titles Showcase' },
   showcaseTags: { ar: 'معرض أفضل 5 شارات وتيجان', en: 'Top 5 Tags Showcase' },
   showcaseFrames: { ar: 'معرض أفضل 5 إطارات', en: 'Top 5 Frames Showcase' },
-  showcaseAvatars: { ar: 'معرض أفضل 5 صور بروفايل AI', en: 'Top 5 AI Avatars Showcase' },
+  showcaseAvatars: { ar: 'معرض أفضل 5 صور أفاتار', en: 'Top 5 Avatars Showcase' },
   statsTitle: { ar: 'إحصائيات المعارك', en: 'Battle Statistics' },
   winRate: { ar: 'نسبة الفوز', en: 'Win Rate' },
   totalMatches: { ar: 'إجمالي المباريات', en: 'Total Matches' },
@@ -111,7 +118,7 @@ export const translations: Translations = {
   quickChallenge: { ar: 'تحدي سريع 1v1', en: 'Quick 1v1 Challenge' },
 
   // Notifications & Gifts
-  notifications: { ar: 'صندوق الإشعارات والجوائز', en: 'Notifications & Gifts Inbox' },
+  notificationsTitle: { ar: 'صندوق الإشعارات والجوائز', en: 'Notifications & Gifts Inbox' },
   noNotifications: { ar: 'لا توجد إشعارات جديدة حالياً', en: 'No notifications at this moment' },
   claimGift: { ar: '🎁 استلام المكافأة الآن', en: '🎁 Claim Reward Now' },
   giftClaimed: { ar: 'تم استلام الجائزة بنجاح!', en: 'Reward Claimed Successfully!' },

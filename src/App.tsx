@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { I18nProvider, useI18n } from './lib/i18n';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocialProvider, useSocial } from './context/SocialContext';
 import { GameProvider, useGame } from './context/GameContext';
 import { allWorlds, getWorldById } from './data/worlds';
-import { Difficulty } from './types';
+import { Difficulty, GameModeType } from './types';
+import { sounds } from './lib/sound';
 
 // Layout
 import { Navbar } from './components/layout/Navbar';
@@ -25,6 +27,7 @@ import { ReportModal } from './components/community/ReportModal';
 import { ChaosRealmCard } from './components/worlds/ChaosRealmCard';
 import { WorldCard } from './components/worlds/WorldCard';
 import { StoreView } from './components/store/StoreView';
+import { LeaderboardView } from './components/leaderboard/LeaderboardView';
 import { ProfileView } from './components/profile/ProfileView';
 import { AdminPanel } from './components/admin/AdminPanel';
 
@@ -37,10 +40,13 @@ import { Film, Gamepad2, Globe, Sparkles, LogIn } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
   const { lang, t } = useI18n();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const { profile, isLoading } = useAuth();
   const { activeChatFriend, closeChat, openChat } = useSocial();
   const { 
     selectedWorld, 
+    selectWorld,
     selectedMode, 
     selectedDifficulty, 
     isPlaying, 
@@ -63,6 +69,7 @@ const MainAppContent: React.FC = () => {
   const [worldModalOpen, setWorldModalOpen] = useState(false);
   const [matchmakingModalOpen, setMatchmakingModalOpen] = useState(false);
   const [matchmakingDiff, setMatchmakingDiff] = useState<Difficulty>('medium');
+  const [matchmakingMode, setMatchmakingMode] = useState<GameModeType>('super_challenge');
 
   // Victory modal state
   const [victoryModalOpen, setVictoryModalOpen] = useState(false);
@@ -82,6 +89,7 @@ const MainAppContent: React.FC = () => {
   }, [isLoading, profile]);
 
   const handleOpenWorldModal = (worldId: string) => {
+    selectWorld(worldId);
     if (!profile) {
       setAuthModalOpen(true);
       return;
@@ -90,18 +98,19 @@ const MainAppContent: React.FC = () => {
     setWorldModalOpen(true);
   };
 
-  const handleOpenMatchmaking = (worldId: string, diff: Difficulty) => {
+  const handleOpenMatchmaking = (worldId: string, diff: Difficulty, mode: GameModeType = 'super_challenge') => {
     if (!profile) {
       setAuthModalOpen(true);
       return;
     }
     setActiveWorldId(worldId);
     setMatchmakingDiff(diff);
+    setMatchmakingMode(mode);
     setMatchmakingModalOpen(true);
   };
 
-  const handleSoloGameFinish = (score: number) => {
-    const res = finishMatch(score, 0);
+  const handleSoloGameFinish = (score: number, customRewards?: { xpEarned: number; coinsEarned: number }) => {
+    const res = finishMatch(score, 0, customRewards);
     setLastMatchResult({
       won: true,
       score,
@@ -111,8 +120,8 @@ const MainAppContent: React.FC = () => {
     setVictoryModalOpen(true);
   };
 
-  const handleSuperGameFinish = (playerScore: number, oppScore: number) => {
-    const res = finishMatch(playerScore, oppScore);
+  const handleSuperGameFinish = (playerScore: number, oppScore: number, customRewards?: { xpEarned: number; coinsEarned: number }) => {
+    const res = finishMatch(playerScore, oppScore, customRewards);
     setLastMatchResult({
       won: res.won,
       score: playerScore,
@@ -131,7 +140,7 @@ const MainAppContent: React.FC = () => {
   const activeWorld = activeWorldId ? getWorldById(activeWorldId) : null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-500 selection:text-white">
+    <div className="min-h-screen flex flex-col font-arabic selection:bg-cyan-500 selection:text-white transition-colors duration-300">
       
       {/* Top Navigation */}
       <Navbar
@@ -188,6 +197,13 @@ const MainAppContent: React.FC = () => {
             {/* STORE VIEW */}
             {currentView === 'store' && <StoreView />}
 
+            {/* LEADERBOARD VIEW */}
+            {currentView === 'leaderboard' && (
+              <LeaderboardView 
+                onChallengePlayer={(wId) => handleOpenMatchmaking(wId, 'medium')} 
+              />
+            )}
+
             {/* PROFILE VIEW */}
             {currentView === 'profile' && <ProfileView />}
 
@@ -223,14 +239,22 @@ const MainAppContent: React.FC = () => {
 
                 {/* Hero Section */}
                 <div className="text-center mb-10">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 font-bold text-xs mb-3 shadow-[0_0_15px_rgba(147,51,234,0.3)]">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
+                  <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-xs mb-3 transition-all ${
+                    isLight 
+                      ? 'bg-cyan-100/90 border border-cyan-300 text-cyan-800 shadow-sm'
+                      : 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                  }`}>
+                    <Sparkles className="w-4 h-4 text-amber-500" />
                     <span>{t('chooseWorld')}</span>
                   </div>
-                  <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-3">
+                  <h1 className={`text-3xl sm:text-5xl font-black tracking-tight mb-3 ${
+                    isLight ? 'text-slate-900' : 'text-white'
+                  }`}>
                     عوالم الأنمي والألعاب الكبرى
                   </h1>
-                  <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+                  <p className={`text-xs sm:text-sm max-w-xl mx-auto ${
+                    isLight ? 'text-slate-600 font-medium' : 'text-slate-400'
+                  }`}>
                     اختر عالمك المفضل وانطلق في تحديات التريفيا، الصح والخطأ، ولعبة من أنا التنافسية
                   </p>
                 </div>
@@ -243,28 +267,40 @@ const MainAppContent: React.FC = () => {
                 </div>
 
                 {/* Category Filters Bar */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-8">
-                  <h2 className="text-lg font-black text-white flex items-center gap-2">
-                    <Globe className="w-5 h-5 text-purple-400" />
+                <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 border-b pb-4 mb-8 ${
+                  isLight ? 'border-slate-200' : 'border-slate-800'
+                }`}>
+                  <h2 className={`text-lg font-black flex items-center gap-2 ${
+                    isLight ? 'text-slate-900' : 'text-white'
+                  }`}>
+                    <Globe className="w-5 h-5 text-cyan-500" />
                     <span>العوالم المتاحة</span>
                   </h2>
 
-                  <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                  <div className={`flex items-center gap-1.5 p-1 rounded-2xl border ${
+                    isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-900/80 border-slate-800'
+                  }`}>
                     <button
-                      onClick={() => setActiveCategoryFilter('all')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      type="button"
+                      onClick={() => { setActiveCategoryFilter('all'); sounds.playClick(); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         activeCategoryFilter === 'all'
-                          ? 'bg-purple-600 text-white shadow-sm'
+                          ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-md'
+                          : isLight 
+                          ? 'text-slate-600 hover:text-slate-900 hover:bg-white/80' 
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
                       {t('allWorlds')}
                     </button>
                     <button
-                      onClick={() => setActiveCategoryFilter('anime')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                      type="button"
+                      onClick={() => { setActiveCategoryFilter('anime'); sounds.playClick(); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                         activeCategoryFilter === 'anime'
-                          ? 'bg-purple-600 text-white shadow-sm'
+                          ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-md'
+                          : isLight 
+                          ? 'text-slate-600 hover:text-slate-900 hover:bg-white/80' 
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
@@ -272,10 +308,13 @@ const MainAppContent: React.FC = () => {
                       <span>{t('animeOnly')}</span>
                     </button>
                     <button
-                      onClick={() => setActiveCategoryFilter('games')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                      type="button"
+                      onClick={() => { setActiveCategoryFilter('games'); sounds.playClick(); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                         activeCategoryFilter === 'games'
-                          ? 'bg-purple-600 text-white shadow-sm'
+                          ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-md'
+                          : isLight 
+                          ? 'text-slate-600 hover:text-slate-900 hover:bg-white/80' 
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
@@ -354,6 +393,7 @@ const MainAppContent: React.FC = () => {
           isOpen={matchmakingModalOpen}
           worldId={activeWorld.id}
           difficulty={matchmakingDiff}
+          mode={matchmakingMode}
           onClose={() => setMatchmakingModalOpen(false)}
         />
       )}
@@ -390,13 +430,15 @@ const MainAppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <I18nProvider>
-      <AuthProvider>
-        <SocialProvider>
-          <GameProvider>
-            <MainAppContent />
-          </GameProvider>
-        </SocialProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocialProvider>
+            <GameProvider>
+              <MainAppContent />
+            </GameProvider>
+          </SocialProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </I18nProvider>
   );
 };

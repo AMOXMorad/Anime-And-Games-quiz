@@ -164,28 +164,29 @@ export const rezeroWorld: World = {
       id: 'rz_triv_7',
       difficulty: 'medium',
       question: { ar: 'ما هو اللقب الأسطوري الذي يحمله الفارس راينهارد فان أستريا؟', en: 'What title is held by Reinhard van Astrea?' },
-      options: [{ ar: 'قديس السيف (Sword Saint)', en: 'Sword Saint' }, { ar: 'فارس الملاذ', en: 'Knight of Sanctuary' }, { ar: 'سيد التنانين', en: 'Dragon Master' }, { ar: 'حاكم الظلال', en: 'Shadow Monarch' }],
+      options: [{ ar: 'قديس السيف', en: 'Sword Saint' }, { ar: 'فارس الملاذ', en: 'Knight of Sanctuary' }, { ar: 'سيد التنانين', en: 'Dragon Master' }, { ar: 'حاكم الظلال', en: 'Shadow Monarch' }],
       correctIndex: 0
     },
     {
       id: 'rz_triv_8',
       difficulty: 'hard',
       question: { ar: 'ما اسم الساحرة التي تسببت في الكارثة العظمى قبل 400 عام ومحبوسة في ختم الضريح؟', en: 'Which Witch caused the Great Calamity 400 years ago and is sealed away?' },
-      options: [{ ar: 'ساتيلا (ساحرة الحسد)', en: 'Satella (Witch of Envy)' }, { ar: 'إيكيدنا', en: 'Echidna' }, { ar: 'كارميلا', en: 'Carmilla' }, { ar: 'مينيرفا', en: 'Minerva' }],
-      correctIndex: 0
+      options: [{ ar: 'ساتيلا', en: 'Satella' }, { ar: 'إيكيدنا', en: 'Echidna' }, { ar: 'كارميلا', en: 'Carmilla' }, { ar: 'مينيرفا', en: 'Minerva' }],
+      correctIndex: 0,
+      explanation: { ar: 'ساتيلا (ساحرة الحسد) دمرت نصف العالم قبل 400 عام.', en: 'Satella (Witch of Envy) caused the Great Calamity.' }
     },
     {
       id: 'rz_triv_9',
       difficulty: 'easy',
       question: { ar: 'من هي الطفلة الروحية التي تحرس المكتبة المحرمة في قصر روزوال؟', en: 'Who is the spirit girl guarding the Forbidden Library at Roswaal’s mansion?' },
-      options: [{ ar: 'بياتريس (Beatrice)', en: 'Beatrice' }, { ar: 'بيترا', en: 'Petra' }, { ar: 'فريدريكا', en: 'Frederica' }, { ar: 'إلسا', en: 'Elsa' }],
+      options: [{ ar: 'بياتريس', en: 'Beatrice' }, { ar: 'بيترا', en: 'Petra' }, { ar: 'فريدريكا', en: 'Frederica' }, { ar: 'إلسا', en: 'Elsa' }],
       correctIndex: 0
     },
     {
       id: 'rz_triv_10',
       difficulty: 'medium',
-      question: { ar: 'ما هو السلاح الخفي القاتل الذي تستخدمه السفاحة إلسا غران هيرت؟', en: 'What is the signature killing move/target of assassin Elsa Granhiert?' },
-      options: [{ ar: 'شق البطون والأمعاء (Bowel Hunter)', en: 'Bowel Hunter' }, { ar: 'قطع الرؤوس', en: 'Decapitation' }, { ar: 'تجميد القلوب', en: 'Heart Freezing' }, { ar: 'السم البطيء', en: 'Slow Poison' }],
+      question: { ar: 'ما هو السلاح الخفي القاتل واللقب الذي تشتهر به السفاحة إلسا غران هيرت؟', en: 'What is the signature title/killing style of assassin Elsa Granhiert?' },
+      options: [{ ar: 'صائدة الأمعاء', en: 'Bowel Hunter' }, { ar: 'قاطعة الرؤوس', en: 'Decapitator' }, { ar: 'مجمدة القلوب', en: 'Heart Freezer' }, { ar: 'المسممة البطيئة', en: 'Slow Poisoner' }],
       correctIndex: 0
     },
     {
@@ -199,7 +200,7 @@ export const rezeroWorld: World = {
       id: 'rz_triv_12',
       difficulty: 'easy',
       question: { ar: 'ما هو نوع الكائنات التي تنتمي إليها الشقيقتان ريم ورام؟', en: 'What race do twin sisters Rem and Ram belong to?' },
-      options: [{ ar: 'عشيرة الأوني (Oni Demon Clan)', en: 'Oni Clan' }, { ar: 'نصف إلف', en: 'Half-Elf' }, { ar: 'بشر عاديون', en: 'Human' }, { ar: 'أقزام', en: 'Dwarves' }],
+      options: [{ ar: 'عشيرة الأوني', en: 'Oni Clan' }, { ar: 'نصف إلف', en: 'Half-Elf' }, { ar: 'بشر عاديون', en: 'Human' }, { ar: 'أقزام', en: 'Dwarves' }],
       correctIndex: 0
     },
     {
@@ -213,7 +214,7 @@ export const rezeroWorld: World = {
       id: 'rz_triv_14',
       difficulty: 'easy',
       question: { ar: 'ما اسم الفتاة اللصة الصغيرة ذات الأسنان الحادة التي تصبح مرشحة للعرش الملكي بمساعدة روم؟', en: 'What is the name of the thief girl who is also a Royal Candidate?' },
-      options: [{ ar: 'فيلت (Felt)', en: 'Felt' }, { ar: 'كريش كارستن', en: 'Crusch' }, { ar: 'أناستازيا', en: 'Anastasia' }, { ar: 'بريسيلا', en: 'Priscilla' }],
+      options: [{ ar: 'فيلت', en: 'Felt' }, { ar: 'كريش كارستن', en: 'Crusch' }, { ar: 'أناستازيا', en: 'Anastasia' }, { ar: 'بريسيلا', en: 'Priscilla' }],
       correctIndex: 0
     },
     {
@@ -226,23 +227,24 @@ export const rezeroWorld: World = {
     {
       id: 'rz_triv_16',
       difficulty: 'hard',
-      question: { ar: 'ما هو الاسم الحقيقي لغارفيل وملاذ السكان نصف الوحوش؟', en: 'What is the title given to Garfiel Tinsel as protector of the Sanctuary?' },
-      options: [{ ar: 'درع الملاذ (The Shield of Sanctuary)', en: 'Shield of Sanctuary' }, { ar: 'سيف الظلال', en: 'Shadow Blade' }, { ar: 'ملك الوحوش', en: 'Beast King' }, { ar: 'حارس الأرواح', en: 'Spirit Guardian' }],
+      question: { ar: 'ما هو اللقب الممنوح لغارفيل تينسل كحامي الملاذ؟', en: 'What is the title given to Garfiel Tinsel as protector of the Sanctuary?' },
+      options: [{ ar: 'درع الملاذ', en: 'Shield of Sanctuary' }, { ar: 'سيف الظلال', en: 'Shadow Blade' }, { ar: 'ملك الوحوش', en: 'Beast King' }, { ar: 'حارس الأرواح', en: 'Spirit Guardian' }],
       correctIndex: 0
     },
     {
       id: 'rz_triv_17',
       difficulty: 'medium',
       question: { ar: 'من هي النبيلة المحاربة ذات الشعر الأخضر التي تقود عائلة كارستن في الانتخابات الملكية؟', en: 'Who is the green-haired Duchess leading the Karsten camp in Royal Selection?' },
-      options: [{ ar: 'كروش كارستن (Crusch Karsten)', en: 'Crusch Karsten' }, { ar: 'بريسيلا بارييل', en: 'Priscilla' }, { ar: 'أناستازيا هوشين', en: 'Anastasia' }, { ar: 'إيميليا', en: 'Emilia' }],
+      options: [{ ar: 'كروش كارستن', en: 'Crusch Karsten' }, { ar: 'بريسيلا بارييل', en: 'Priscilla' }, { ar: 'أناستازيا هوشين', en: 'Anastasia' }, { ar: 'إيميليا', en: 'Emilia' }],
       correctIndex: 0
     },
     {
       id: 'rz_triv_18',
       difficulty: 'hard',
       question: { ar: 'ما هو العنصر السحري الذي يتحكم به سوبارو ناتسوكي طبيعياً؟', en: 'What natural magical element affinity does Subaru Natsuki have?' },
-      options: [{ ar: 'عنصر الـ يين (سحر الظلال)', en: 'Yin Magic (Shadows)' }, { ar: 'عنصر اليانغ (الضوء)', en: 'Yang Magic' }, { ar: 'عنصر النار', en: 'Fire' }, { ar: 'عنصر الأرض', en: 'Earth' }],
-      correctIndex: 0
+      options: [{ ar: 'عنصر الـ يين', en: 'Yin Magic' }, { ar: 'عنصر اليانغ', en: 'Yang Magic' }, { ar: 'عنصر النار', en: 'Fire' }, { ar: 'عنصر الأرض', en: 'Earth' }],
+      correctIndex: 0,
+      explanation: { ar: 'عنصر الـ يين يتحكم في سحر الظلال والمكان مثل الشاماق (Shamak).', en: 'Yin magic controls shadows and spatial disruption like Shamak.' }
     },
     {
       id: 'rz_triv_19',
@@ -254,8 +256,8 @@ export const rezeroWorld: World = {
     {
       id: 'rz_triv_20',
       difficulty: 'hard',
-      question: { ar: 'ما هي العبارة التي نقشت على تميمة سوبارو قبل دخوله قصر روزوال؟', en: 'What was Subaru’s iconic turning point phrase delivered with Rem in Episode 18?' },
-      options: [{ ar: 'لنبدأ من الصفر (From Zero)', en: 'Starting from Zero' }, { ar: 'الموت لا ينتهي', en: 'Death never ends' }, { ar: 'أنا ساحر الظلام', en: 'I am shadow mage' }, { ar: 'العودة للمستقبل', en: 'Return to future' }],
+      question: { ar: 'ما هي العبارة الأيقونية التي قالها سوبارو لريم في الحلقة 18 ليبدآ من جديد؟', en: 'What was Subaru’s iconic phrase delivered with Rem in Episode 18?' },
+      options: [{ ar: 'لنبدأ من الصفر', en: 'Starting from Zero' }, { ar: 'الموت لا ينتهي', en: 'Death never ends' }, { ar: 'أنا ساحر الظلام', en: 'I am shadow mage' }, { ar: 'العودة للمستقبل', en: 'Return to future' }],
       correctIndex: 0
     }
   ],

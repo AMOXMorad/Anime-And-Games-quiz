@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Difficulty } from '../../types';
+import { Difficulty, GameModeType } from '../../types';
 import { useGame } from '../../context/GameContext';
 import { useI18n } from '../../lib/i18n';
 import { sounds } from '../../lib/sound';
@@ -9,6 +9,7 @@ interface MatchmakingModalProps {
   isOpen: boolean;
   worldId: string;
   difficulty: Difficulty;
+  mode?: GameModeType;
   onClose: () => void;
 }
 
@@ -16,18 +17,20 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
   isOpen,
   worldId,
   difficulty,
+  mode = 'super_challenge',
   onClose
 }) => {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const { 
-    startSuperMatchmaking, 
+    startMatchmaking,
     createPrivateRoom, 
     joinPrivateRoom, 
     reconnectToActiveRoom,
-    savedActiveRoomCode,
+    savedActiveRoomCode, 
     isSuperMatchmaking, 
     superRoomCode, 
-    cancelMatchmaking 
+    cancelMatchmaking,
+    selectedWorld
   } = useGame();
 
   const [tab, setTab] = useState<'random' | 'private'>('random');
@@ -37,12 +40,15 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
 
   if (!isOpen) return null;
 
+  const currentWorldTitle = selectedWorld?.name[lang] || (worldId === 'naruto' ? 'ناروتو شيبودن' : worldId === 'rezero' ? 'ريزيرو' : 'عالم الفوضى الكونية');
+  const currentWorldIcon = selectedWorld?.icon || (worldId === 'naruto' ? '🍥' : worldId === 'rezero' ? '🍎' : '🔮');
+
   const handleStartRandom = () => {
-    startSuperMatchmaking(worldId, difficulty);
+    startMatchmaking(worldId, mode, difficulty);
   };
 
   const handleCreateRoom = () => {
-    createPrivateRoom(worldId, difficulty);
+    createPrivateRoom(worldId, difficulty, mode);
   };
 
   const handleJoinRoom = (e: React.FormEvent) => {
@@ -77,10 +83,10 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
       {/* Backdrop */}
       <div 
         onClick={() => { onClose(); cancelMatchmaking(); sounds.playClick(); }}
-        className="absolute inset-0 bg-black/80 backdrop-blur-md"
+        className="absolute inset-0 bg-black/85 backdrop-blur-md"
       />
 
-      <div className="relative w-full max-w-lg bg-slate-900 border border-purple-500/50 rounded-3xl p-6 sm:p-8 shadow-[0_0_40px_rgba(147,51,234,0.4)] z-10">
+      <div className="relative w-full max-w-lg bg-slate-900 border border-cyan-500/50 rounded-3xl p-6 sm:p-8 shadow-[0_0_40px_rgba(6,182,212,0.35)] z-10">
         
         {/* Close Button */}
         <button
@@ -91,12 +97,15 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
         </button>
 
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-600 to-purple-600 shadow-lg mb-2">
-            <Swords className="w-6 h-6 text-white" />
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 to-sky-500 shadow-lg mb-2 text-2xl">
+            {currentWorldIcon}
           </div>
-          <h3 className="text-2xl font-black text-white">تحدي الـ Super التنافسي (1v1)</h3>
-          <p className="text-xs text-slate-400 mt-1">واجه لاعبين حقيقيين أونلاين بنقاط السرعة والدقة</p>
+          <h3 className="text-xl sm:text-2xl font-black text-white">ساحة المواجهات التنافسية (1v1)</h3>
+          <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-xs font-bold">
+            <span>نطاق المطابقة:</span>
+            <span className="text-white font-black">{currentWorldTitle} فقط</span>
+          </div>
         </div>
 
         {/* Reconnect Banner if previous active room exists */}
@@ -122,7 +131,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
             <button
               onClick={() => { setTab('random'); sounds.playClick(); }}
               className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-                tab === 'random' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                tab === 'random' ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white'
               }`}
             >
               بحث عشوائي سريع
@@ -130,7 +139,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
             <button
               onClick={() => { setTab('private'); sounds.playClick(); }}
               className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-                tab === 'private' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                tab === 'private' ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white'
               }`}
             >
               غرفة خاصة بكود
@@ -142,14 +151,14 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
         {isSuperMatchmaking ? (
           <div className="py-8 text-center space-y-4">
             <div className="relative w-20 h-20 mx-auto">
-              <div className="absolute inset-0 rounded-full border-4 border-purple-500 border-t-transparent animate-spin" />
-              <div className="absolute inset-2 rounded-full border-4 border-cyan-400 border-b-transparent animate-spin-slow" />
+              <div className="absolute inset-0 rounded-full border-4 border-cyan-500 border-t-transparent animate-spin" />
+              <div className="absolute inset-2 rounded-full border-4 border-sky-400 border-b-transparent animate-spin-slow" />
               <div className="w-full h-full rounded-full flex items-center justify-center">
-                <Radar className="w-8 h-8 text-purple-400 animate-pulse" />
+                <Radar className="w-8 h-8 text-cyan-400 animate-pulse" />
               </div>
             </div>
             <h4 className="text-lg font-black text-white">جاري البحث عن خصم مناسب...</h4>
-            <p className="text-xs text-slate-400">نطابقك مع لاعبين من نفس المستوى والرانك</p>
+            <p className="text-xs text-slate-400">نطابقك مع لاعبين من نفس المستوى داخل {currentWorldTitle} فقط</p>
 
             <button
               onClick={cancelMatchmaking}
@@ -160,13 +169,13 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
           </div>
         ) : superRoomCode ? (
           <div className="py-4 text-center space-y-4">
-            <div className="p-4 rounded-2xl bg-purple-950/60 border border-purple-500/40">
-              <span className="text-xs text-purple-300 font-semibold block mb-1">كود الغرفة الخاصة:</span>
+            <div className="p-4 rounded-2xl bg-cyan-950/60 border border-cyan-500/40">
+              <span className="text-xs text-cyan-300 font-semibold block mb-1">كود الغرفة الخاصة:</span>
               <div className="text-2xl font-black text-white tracking-widest flex items-center justify-center gap-2">
                 <span>#{superRoomCode}</span>
                 <button
                   onClick={handleCopyCode}
-                  className="p-1.5 rounded-lg bg-purple-900 text-purple-300 hover:text-white transition-colors"
+                  className="p-1.5 rounded-lg bg-cyan-900 text-cyan-300 hover:text-white transition-colors"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 </button>
@@ -192,15 +201,15 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
         ) : tab === 'random' ? (
           <div className="py-4 text-center space-y-4">
             <p className="text-xs text-slate-300 leading-relaxed">
-              انطلق في مواجهة سريعة من 3 جولات ضد لاعبين عشوائيين لإثبات جدارتك وتسلق الترتيب العالمي.
+              انطلق في مواجهة سريعة ضد لاعبين عشوائيين في <span className="text-cyan-300 font-bold">{currentWorldTitle}</span> لإثبات جدارتك وتسلق الترتيب العالمي.
             </p>
 
             <button
               onClick={handleStartRandom}
-              className="w-full py-3.5 bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-cyan-600 via-sky-500 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-sm rounded-2xl shadow-[0_0_25px_rgba(6,182,212,0.5)] transition-all flex items-center justify-center gap-2"
             >
-              <Play className="w-4 h-4" />
-              <span>بدء البحث عن خصم</span>
+              <Play className="w-4 h-4 fill-current" />
+              <span>بدء البحث عن خصم في {currentWorldTitle}</span>
             </button>
           </div>
         ) : (
@@ -210,7 +219,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
               <h5 className="font-bold text-white text-xs mb-1">إنشاء غرفة جديدة وتحدي صديق</h5>
               <button
                 onClick={handleCreateRoom}
-                className="mt-2 w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+                className="mt-2 w-full py-2.5 bg-gradient-to-r from-cyan-600 to-sky-500 hover:from-cyan-500 hover:to-sky-400 text-white font-bold text-xs rounded-xl shadow-md transition-all"
               >
                 توليد كود غرفة خاصة
               </button>
@@ -229,8 +238,8 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
                   type="text"
                   value={inputCode}
                   onChange={e => setInputCode(e.target.value)}
-                  placeholder="أدخل كود الغرفة (مثال: #NARUTO-9281)"
-                  className="w-full py-2.5 px-4 bg-slate-950 border border-slate-800 rounded-xl text-center text-xs font-bold text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-colors"
+                  placeholder={`أدخل كود الغرفة (مثال: #${worldId.toUpperCase()}-9281)`}
+                  className="w-full py-2.5 px-4 bg-slate-950 border border-slate-800 rounded-xl text-center text-xs font-bold text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
                 />
               </div>
 
@@ -241,7 +250,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
               <button
                 type="submit"
                 disabled={!inputCode.trim()}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+                className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-md transition-all"
               >
                 دخول الغرفة وبدء المباراة
               </button>

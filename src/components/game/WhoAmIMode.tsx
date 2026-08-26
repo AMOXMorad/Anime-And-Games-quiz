@@ -28,7 +28,7 @@ import confetti from 'canvas-confetti';
 interface WhoAmIModeProps {
   world: World;
   difficulty: Difficulty;
-  onFinish: (score: number) => void;
+  onFinish: (score: number, customRewards?: { xpEarned: number; coinsEarned: number }) => void;
 }
 
 interface ChatLogEntry {
@@ -317,7 +317,7 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
       setWinner('player');
       setGameResultReason(`عبقري! لقد اكتشفت أنك: ${playerChar.name[lang]}`);
       setIsGameOver(true);
-      const calculatedScore = 350 + playerAttempts * 50;
+      const calculatedScore = playerAttempts === 3 ? 1500 : playerAttempts === 2 ? 1000 : playerAttempts === 1 ? 500 : 200;
       setScore(calculatedScore);
     } else {
       sounds.playWrong();
@@ -340,7 +340,7 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
         setWinner('opponent');
         setGameResultReason('لقد استنفدت محاولات التخمين الثلاث! فاز المنافس تلقائياً.');
         setIsGameOver(true);
-        setScore(40);
+        setScore(200);
       } else {
         setCurrentTurn('opponent');
         if (opponentChar) {
@@ -350,6 +350,17 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
     }
   };
 
+  // Calculate scaled rewards based on attempts remaining
+  const calculateWhoAmIRewards = (attemptsLeft: number, isWon: boolean) => {
+    if (!isWon || attemptsLeft <= 0) {
+      return { xp: 200, coins: 200 };
+    }
+    if (attemptsLeft === 3) return { xp: 1500, coins: 1500 };
+    if (attemptsLeft === 2) return { xp: 1000, coins: 1000 };
+    if (attemptsLeft === 1) return { xp: 500, coins: 500 };
+    return { xp: 200, coins: 200 };
+  };
+
   // Surrender / Forfeit Match
   const handleSurrender = () => {
     sounds.playWrong();
@@ -357,12 +368,14 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
     setWinner('opponent');
     setGameResultReason('لقد انسحبت من المباراة ومنحت الفوز للمنافس.');
     setIsGameOver(true);
-    setScore(20);
+    setScore(200);
   };
 
   const handleFinishMatch = () => {
     sounds.playClick();
-    onFinish(score);
+    const isWon = winner === 'player';
+    const rewards = calculateWhoAmIRewards(playerAttempts, isWon);
+    onFinish(score, { xpEarned: rewards.xp, coinsEarned: rewards.coins });
   };
 
   // -------------------------------------------------------------
@@ -721,11 +734,16 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
               </div>
             </div>
 
+            <div className="flex items-center justify-center gap-3 mb-4 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span className="text-xs font-black text-amber-400">+{calculateWhoAmIRewards(playerAttempts, winner === 'player').coins} Coins 🪙</span>
+              <span className="text-xs font-black text-cyan-400">+{calculateWhoAmIRewards(playerAttempts, winner === 'player').xp} XP ✨</span>
+            </div>
+
             <button
               onClick={handleFinishMatch}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm rounded-xl shadow-lg transition-all"
+              className="w-full py-3 bg-gradient-to-r from-cyan-600 to-sky-500 hover:from-cyan-500 hover:to-sky-400 text-white font-black text-sm rounded-xl shadow-lg transition-all"
             >
-              متابعة واستلام النقاط والخبرة (+{score} XP)
+              متابعة واستلام الجوائز
             </button>
           </div>
         </div>

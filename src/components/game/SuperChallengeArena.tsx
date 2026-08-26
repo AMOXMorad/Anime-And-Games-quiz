@@ -9,6 +9,8 @@ import { LevelBadge } from '../ui/LevelBadge';
 import { Swords, Timer, Zap, Trophy, Shield, Check, X, ArrowRight, UserCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+import { shuffleTriviaOptions } from '../../data/worlds';
+
 interface SuperChallengeArenaProps {
   world: World;
   difficulty: Difficulty;
@@ -53,7 +55,7 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
     setTfQuestions([...tfPool].sort(() => 0.5 - Math.random()).slice(0, 3));
 
     const trPool = world.triviaQuestions.length > 0 ? world.triviaQuestions : world.triviaQuestions;
-    setTriviaQuestions([...trPool].sort(() => 0.5 - Math.random()).slice(0, 3));
+    setTriviaQuestions([...trPool].sort(() => 0.5 - Math.random()).slice(0, 3).map(shuffleTriviaOptions));
 
     if (world.characters.length > 0) {
       setTargetChar(world.characters[Math.floor(Math.random() * world.characters.length)]);

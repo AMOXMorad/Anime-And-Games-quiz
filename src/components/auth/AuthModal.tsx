@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../lib/i18n';
 import { sounds } from '../../lib/sound';
-import { X, Sparkles, User, Mail, Lock, LogIn, UserPlus, UserCheck } from 'lucide-react';
+import { User, Mail, Lock, LogIn, UserPlus, UserCheck } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -51,54 +51,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
-      {/* Backdrop */}
-      <div 
-        onClick={() => { onClose(); sounds.playClick(); }}
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-      />
+      {/* Non-clickable backdrop — user MUST authenticate or go guest */}
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
 
-      {/* Card */}
-      <div className="relative w-full max-w-md bg-slate-900 border border-purple-500/40 rounded-3xl p-6 md:p-8 shadow-[0_0_40px_rgba(147,51,234,0.35)] z-10">
-        
-        {/* Close Button */}
-        <button
-          onClick={() => { onClose(); sounds.playClick(); }}
-          className="absolute top-4 end-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
+      {/* Card — pure pitch-black */}
+      <div className="relative w-full max-w-md bg-black border border-cyan-500/30 rounded-3xl p-6 md:p-8 shadow-[0_0_60px_rgba(6,182,212,0.25)] z-10">
 
-        {/* Modal Header */}
+        {/* Modal Header — A.png logo */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-cyan-500 shadow-[0_0_15px_rgba(147,51,234,0.5)] mb-3">
-            <Sparkles className="w-6 h-6 text-white" />
+          <div className="flex justify-center mb-3">
+            <img
+              src="/A.png"
+              alt="AG Utopia"
+              className="h-16 w-auto object-contain filter drop-shadow-[0_0_18px_rgba(6,182,212,0.7)]"
+            />
           </div>
-          <h3 className="text-2xl font-black text-white tracking-wide">AG UTOPIA</h3>
+          <h3 className="text-2xl font-black text-white tracking-wider">AG UTOPIA</h3>
           <p className="text-xs text-slate-400 mt-1">{t('appTagline')}</p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-800 mb-6">
+        <div className="flex bg-black p-1 rounded-2xl border border-slate-800 mb-6">
           <button
+            type="button"
             onClick={() => { setMode('login'); setError(''); sounds.playClick(); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-              mode === 'login' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              mode === 'login'
+                ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)] ring-1 ring-white/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
           >
             {t('login')}
           </button>
           <button
+            type="button"
             onClick={() => { setMode('register'); setError(''); sounds.playClick(); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-              mode === 'register' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              mode === 'register'
+                ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)] ring-1 ring-white/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
           >
             {t('register')}
           </button>
           <button
+            type="button"
             onClick={() => { setMode('guest'); setError(''); sounds.playClick(); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-              mode === 'guest' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              mode === 'guest'
+                ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)] ring-1 ring-white/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
           >
             {t('guestMode')}
@@ -107,7 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          
+
           {mode === 'register' && (
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5">{t('username')}</label>
@@ -119,7 +121,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="مثال: ShadowNinja"
-                  className="w-full ps-10 pe-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full ps-10 pe-4 py-2.5 bg-black border border-slate-800 focus:border-cyan-500 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none transition-colors"
                 />
               </div>
             </div>
@@ -136,7 +138,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="name@example.com أو اسم المستخدم"
-                  className="w-full ps-10 pe-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full ps-10 pe-4 py-2.5 bg-black border border-slate-800 focus:border-cyan-500 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none transition-colors"
                 />
               </div>
             </div>
@@ -153,7 +155,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full ps-10 pe-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full ps-10 pe-4 py-2.5 bg-black border border-slate-800 focus:border-cyan-500 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none transition-colors"
                 />
               </div>
             </div>
@@ -169,7 +171,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="Challenger"
-                  className="w-full ps-10 pe-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full ps-10 pe-4 py-2.5 bg-black border border-slate-800 focus:border-cyan-500 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none transition-colors"
                 />
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
@@ -186,12 +188,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.4)] transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 bg-gradient-to-r from-cyan-600 to-sky-500 hover:from-cyan-500 hover:to-sky-400 text-white font-black text-xs rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer ring-1 ring-white/20"
           >
-            {mode === 'login' && <LogIn className="w-4 h-4" />}
-            {mode === 'register' && <UserPlus className="w-4 h-4" />}
-            {mode === 'guest' && <UserCheck className="w-4 h-4" />}
-            <span>
+            {mode === 'login' && <LogIn className="w-4 h-4 text-white" />}
+            {mode === 'register' && <UserPlus className="w-4 h-4 text-white" />}
+            {mode === 'guest' && <UserCheck className="w-4 h-4 text-white" />}
+            <span className="text-white">
               {mode === 'login' ? t('login') : mode === 'register' ? t('register') : 'بدء اللعب كضيف'}
             </span>
           </button>

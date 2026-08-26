@@ -9,11 +9,17 @@ export default {
     extend: {
       colors: {
         utopia: {
-          dark: '#0a0b10',
-          card: '#121420',
-          border: '#1f2438',
-          accent: '#8b5cf6',
-          neon: '#06b6d4',
+          dark: '#000000',      // Pure Black
+          card: '#080c14',      // Deep pitch black card
+          cardSub: '#0d1322',   // Secondary dark card
+          border: '#162032',    // Subtle dark border
+          lightBg: '#ffffff',   // Pure White
+          lightCard: '#f8fafc', // Clean Light Card
+          lightBorder: '#e2e8f0',
+          accent: '#0ea5e9',    // Sky Blue
+          cyan: '#06b6d4',      // Electric Cyan
+          azure: '#0284c7',     // Deep Azure
+          neon: '#38bdf8',      // Bright Sky Neon
           gold: '#f59e0b',
           crimson: '#ef4444',
           emerald: '#10b981',
@@ -30,8 +36,8 @@ export default {
       },
       keyframes: {
         pulseGlow: {
-          '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 15px rgba(139, 92, 246, 0.6))' },
-          '50%': { opacity: '.7', filter: 'drop-shadow(0 0 5px rgba(139, 92, 246, 0.2))' },
+          '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 15px rgba(6, 182, 212, 0.6))' },
+          '50%': { opacity: '.7', filter: 'drop-shadow(0 0 5px rgba(6, 182, 212, 0.2))' },
         },
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },

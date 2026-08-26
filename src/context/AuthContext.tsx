@@ -20,6 +20,11 @@ interface AuthContextType {
   updateStats: (win: boolean, correctCount: number, mode: 'who_am_i' | 'trivia' | 'super') => void;
   buyItem: (item: StoreItem) => { success: boolean; message: string };
   redeemPromoCode: (code: string, storeItems: StoreItem[]) => { success: boolean; message: string; item?: StoreItem; coins?: number };
+  updateProfileDetails: (newUsername?: string, newBio?: string) => { success: boolean; message: string };
+  deleteUserFromDatabase: (userId: string) => { success: boolean; message: string };
+  adminRemoveItemFromUser: (userId: string, itemId: string) => { success: boolean; message: string };
+  adminAddItemToUser: (userId: string, itemId: string) => { success: boolean; message: string };
+  adminGetUserInventory: (userId: string) => string[];
   setAdminRole: (role: 'user' | 'admin' | 'moderator') => void;
 }
 
@@ -329,11 +334,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'تمتلك هذا العنصر بالفعل' };
     }
 
-    if (item.unlock_type === 'level' && item.required_level && profile.level < item.required_level) {
-      sounds.playWrong();
-      return { success: false, message: `يتطلب هذا العنصر الوصول للمستوى ${item.required_level}` };
-    }
-
     if (item.unlock_type === 'code') {
       sounds.playWrong();
       return { success: false, message: 'هذا العنصر حصري عبر كود ترويجي خاص فقط!' };
@@ -344,12 +344,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'هذا العنصر حصري كهدية خاصة يرسلها المؤسس فقط!' };
     }
 
-    if (profile.coins < item.price) {
+    // Determine actual cost: Free if player has reached or exceeded required_level
+    const isFreeAtLevel = item.unlock_type === 'level' && item.required_level && profile.level >= item.required_level;
+    const actualCost = isFreeAtLevel ? 0 : item.price;
+
+    if (profile.coins < actualCost) {
       sounds.playWrong();
+      if (item.unlock_type === 'level' && item.required_level) {
+        return { 
+          success: false, 
+          message: `لا تملك عملات كافية للشراء المبكر (${item.price} كوينز). يمكنك أيضاً الانتظار حتى تصل للمستوى ${item.required_level} للحصول عليه مجاناً!` 
+        };
+      }
       return { success: false, message: 'لا تملك عملات كافية' };
     }
 
-    const updatedCoins = profile.coins - item.price;
+    const updatedCoins = profile.coins - actualCost;
     const updatedInv = [...inventory, item.id];
     const updatedProfile = { ...profile, coins: updatedCoins };
 
@@ -357,7 +367,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(updatedProfile);
     saveSession(updatedProfile, updatedInv);
     sounds.playClaim();
-    confetti({ particleCount: 60, spread: 60 });
+    confetti({ particleCount: 70, spread: 65 });
+
+    if (isFreeAtLevel) {
+      return { success: true, message: `🎉 مبروك! تم استلام العنصر مجاناً لوصولك للمستوى ${item.required_level}!` };
+    }
     return { success: true, message: 'تم الشراء بنجاح!' };
   };
 
@@ -507,6 +521,206 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
+  const updateProfileDetails = (
+    newUsername?: string,
+    newBio?: string
+  ): { success: boolean; message: string } => {
+    if (!profile) return { success: false, message: 'يرجى تسجيل الدخول أولاً' };
+
+    let updatedUsername = profile.username;
+    let updatedLastChange = profile.last_username_change_at;
+
+    if (newUsername && newUsername.trim() !== profile.username) {
+      const cleanName = newUsername.trim();
+
+      // Check 14-day limit if not admin
+      if (profile.role !== 'admin' && profile.last_username_change_at) {
+        const lastChangeDate = new Date(profile.last_username_change_at).getTime();
+        const now = Date.now();
+        const diffDays = (now - lastChangeDate) / (1000 * 60 * 60 * 24);
+        const cooldownDays = 14;
+
+        if (diffDays < cooldownDays) {
+          const remainingDays = Math.ceil(cooldownDays - diffDays);
+          sounds.playWrong();
+          return {
+            success: false,
+            message: `⏰ عذراً! لا يمكنك تغيير اسمك إلا مرة كل 14 يوماً (أسبوعين). المتبقي: ${remainingDays} يوم.`
+          };
+        }
+      }
+
+      if (cleanName.toUpperCase() === ADMIN_USERNAME.toUpperCase() && profile.role !== 'admin') {
+        sounds.playWrong();
+        return { success: false, message: 'اسم المستخدم AMOX مخصص للمشرف العام فقط!' };
+      }
+
+      updatedUsername = cleanName;
+      updatedLastChange = new Date().toISOString();
+    }
+
+    const updatedProfile: Profile = {
+      ...profile,
+      username: updatedUsername,
+      bio: newBio !== undefined ? newBio.trim() : profile.bio,
+      last_username_change_at: updatedLastChange
+    };
+
+    setProfile(updatedProfile);
+    saveSession(updatedProfile, inventory);
+
+    // Update in registered users list
+    try {
+      const savedUsers: Profile[] = JSON.parse(localStorage.getItem('ag_utopia_registered_users') || '[]');
+      const userIndex = savedUsers.findIndex(u => u.id === profile.id);
+      if (userIndex >= 0) {
+        savedUsers[userIndex] = updatedProfile;
+      } else {
+        savedUsers.push(updatedProfile);
+      }
+      localStorage.setItem('ag_utopia_registered_users', JSON.stringify(savedUsers));
+    } catch (e) {}
+
+    sounds.playVictory();
+    return { success: true, message: '✅ تم حفظ تعديلات الملف الشخصي بنجاح!' };
+  };
+
+  const deleteUserFromDatabase = (userId: string): { success: boolean; message: string } => {
+    if (!profile || profile.role !== 'admin') {
+      return { success: false, message: 'صلاحية الأدمن مطلوبة لحذف المستخدمين' };
+    }
+    if (userId === profile.id) {
+      return { success: false, message: 'لا يمكن حذف حساب الأدمن الرئيسي' };
+    }
+
+    try {
+      const savedUsers: Profile[] = JSON.parse(localStorage.getItem('ag_utopia_registered_users') || '[]');
+      const filtered = savedUsers.filter(u => u.id !== userId);
+      localStorage.setItem('ag_utopia_registered_users', JSON.stringify(filtered));
+      sounds.playWrong();
+      return { success: true, message: '🗑️ تم حذف حساب اللاعب نهائياً من قاعدة البيانات.' };
+    } catch (e) {
+      return { success: false, message: 'فشل حذف المستخدم' };
+    }
+  };
+
+  const adminGetUserInventory = (userId: string): string[] => {
+    if (userId === profile?.id) {
+      return inventory;
+    }
+    try {
+      const savedUsers: Profile[] = JSON.parse(localStorage.getItem('ag_utopia_registered_users') || '[]');
+      const user = savedUsers.find(u => u.id === userId);
+      if (user?.inventory && user.inventory.length > 0) {
+        return user.inventory;
+      }
+      const invMap = JSON.parse(localStorage.getItem('ag_utopia_user_inventories') || '{}');
+      if (invMap[userId] && Array.isArray(invMap[userId])) {
+        return invMap[userId];
+      }
+    } catch (e) {}
+    return ['avatar_default', 'frame_default', 'tag_rookie', 'title_novice'];
+  };
+
+  const adminRemoveItemFromUser = (userId: string, itemId: string): { success: boolean; message: string } => {
+    if (!profile || profile.role !== 'admin') {
+      return { success: false, message: 'صلاحية المشرف العام مطلوبة لسحب العناصر' };
+    }
+
+    try {
+      const defaultItems = ['avatar_default', 'frame_default', 'tag_rookie', 'title_novice'];
+      if (defaultItems.includes(itemId)) {
+        return { success: false, message: 'لا يمكن حذف العناصر الافتراضية الأساسية للنظام' };
+      }
+
+      // If modifying current session user
+      if (userId === profile.id) {
+        const updatedInv = inventory.filter(id => id !== itemId);
+        setInventory(updatedInv);
+        const updatedProfile = { ...profile };
+        if (updatedProfile.active_avatar_id === itemId) updatedProfile.active_avatar_id = 'avatar_default';
+        if (updatedProfile.active_frame_id === itemId) updatedProfile.active_frame_id = 'frame_default';
+        if (updatedProfile.active_tag_id === itemId) updatedProfile.active_tag_id = 'tag_rookie';
+        if (updatedProfile.active_title_id === itemId) updatedProfile.active_title_id = 'title_novice';
+        if (updatedProfile.showcase_avatars) updatedProfile.showcase_avatars = updatedProfile.showcase_avatars.filter(id => id !== itemId);
+        if (updatedProfile.showcase_frames) updatedProfile.showcase_frames = updatedProfile.showcase_frames.filter(id => id !== itemId);
+        if (updatedProfile.showcase_tags) updatedProfile.showcase_tags = updatedProfile.showcase_tags.filter(id => id !== itemId);
+        if (updatedProfile.showcase_titles) updatedProfile.showcase_titles = updatedProfile.showcase_titles.filter(id => id !== itemId);
+        setProfile(updatedProfile);
+        saveSession(updatedProfile, updatedInv);
+      }
+
+      // Update registered users list in database
+      const savedUsers: Profile[] = JSON.parse(localStorage.getItem('ag_utopia_registered_users') || '[]');
+      const userIdx = savedUsers.findIndex(u => u.id === userId);
+      if (userIdx >= 0) {
+        const target = savedUsers[userIdx];
+        const userInv = (target.inventory || adminGetUserInventory(userId)).filter(id => id !== itemId);
+        target.inventory = userInv;
+        if (target.active_avatar_id === itemId) target.active_avatar_id = 'avatar_default';
+        if (target.active_frame_id === itemId) target.active_frame_id = 'frame_default';
+        if (target.active_tag_id === itemId) target.active_tag_id = 'tag_rookie';
+        if (target.active_title_id === itemId) target.active_title_id = 'title_novice';
+        if (target.showcase_avatars) target.showcase_avatars = target.showcase_avatars.filter(id => id !== itemId);
+        if (target.showcase_frames) target.showcase_frames = target.showcase_frames.filter(id => id !== itemId);
+        if (target.showcase_tags) target.showcase_tags = target.showcase_tags.filter(id => id !== itemId);
+        if (target.showcase_titles) target.showcase_titles = target.showcase_titles.filter(id => id !== itemId);
+        savedUsers[userIdx] = target;
+        localStorage.setItem('ag_utopia_registered_users', JSON.stringify(savedUsers));
+      }
+
+      // Update dedicated inventories storage map
+      const invMap = JSON.parse(localStorage.getItem('ag_utopia_user_inventories') || '{}');
+      invMap[userId] = (invMap[userId] || adminGetUserInventory(userId)).filter((id: string) => id !== itemId);
+      localStorage.setItem('ag_utopia_user_inventories', JSON.stringify(invMap));
+
+      sounds.playWrong();
+      return { success: true, message: '🗑️ تم سحب وحذف العنصر من مخزون اللاعب بنجاح!' };
+    } catch (e) {
+      return { success: false, message: 'حدث خطأ أثناء سحب العنصر' };
+    }
+  };
+
+  const adminAddItemToUser = (userId: string, itemId: string): { success: boolean; message: string } => {
+    if (!profile || profile.role !== 'admin') {
+      return { success: false, message: 'صلاحية المشرف العام مطلوبة لمنح العناصر' };
+    }
+
+    try {
+      if (userId === profile.id) {
+        if (!inventory.includes(itemId)) {
+          const updatedInv = [...inventory, itemId];
+          setInventory(updatedInv);
+          saveSession(profile, updatedInv);
+        }
+      }
+
+      const savedUsers: Profile[] = JSON.parse(localStorage.getItem('ag_utopia_registered_users') || '[]');
+      const userIdx = savedUsers.findIndex(u => u.id === userId);
+      if (userIdx >= 0) {
+        const target = savedUsers[userIdx];
+        const userInv = target.inventory || adminGetUserInventory(userId);
+        if (!userInv.includes(itemId)) {
+          target.inventory = [...userInv, itemId];
+          savedUsers[userIdx] = target;
+          localStorage.setItem('ag_utopia_registered_users', JSON.stringify(savedUsers));
+        }
+      }
+
+      const invMap = JSON.parse(localStorage.getItem('ag_utopia_user_inventories') || '{}');
+      const curInv = invMap[userId] || adminGetUserInventory(userId);
+      if (!curInv.includes(itemId)) {
+        invMap[userId] = [...curInv, itemId];
+        localStorage.setItem('ag_utopia_user_inventories', JSON.stringify(invMap));
+      }
+
+      sounds.playVictory();
+      return { success: true, message: '🎁 تم إضافة العنصر لمخزون اللاعب بنجاح!' };
+    } catch (e) {
+      return { success: false, message: 'حدث خطأ أثناء إضافة العنصر' };
+    }
+  };
+
   const setAdminRole = (role: 'user' | 'admin' | 'moderator') => {
     if (!profile) return;
     const updated = { ...profile, role };
@@ -531,6 +745,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateStats,
         buyItem,
         redeemPromoCode,
+        updateProfileDetails,
+        deleteUserFromDatabase,
+        adminRemoveItemFromUser,
+        adminAddItemToUser,
+        adminGetUserInventory,
         setAdminRole
       }}
     >

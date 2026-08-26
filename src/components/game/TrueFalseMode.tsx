@@ -3,17 +3,17 @@ import { World, TrueFalseQuestion, Difficulty } from '../../types';
 import { useI18n } from '../../lib/i18n';
 import { useGame } from '../../context/GameContext';
 import { sounds } from '../../lib/sound';
-import { Timer, Zap, Check, X, ArrowRight, Trophy, AlertCircle, Flag, AlertTriangle } from 'lucide-react';
+import { Timer, Zap, Check, X, ArrowRight, Trophy, AlertCircle, Flag, AlertTriangle, Flame, Coins } from 'lucide-react';
 
 interface TrueFalseModeProps {
   world: World;
   difficulty: Difficulty;
-  onFinish: (score: number) => void;
+  onFinish: (score: number, customRewards?: { xpEarned: number; coinsEarned: number }) => void;
 }
 
 export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty, onFinish }) => {
   const { lang, t } = useI18n();
-  const { exitGame } = useGame();
+  const { exitGame, matchType } = useGame();
 
   const [questions, setQuestions] = useState<TrueFalseQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -22,6 +22,14 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
   const [timeLeft, setTimeLeft] = useState<number>(8); // 8-second fast blitz timer
   const [score, setScore] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
+
+  // Speed Double XP Tracker
+  const [fastStreakCount, setFastStreakCount] = useState<number>(0);
+  const [isDoubleActive, setIsDoubleActive] = useState<boolean>(false);
+  const [accumulatedXp, setAccumulatedXp] = useState<number>(0);
+  const [accumulatedCoins, setAccumulatedCoins] = useState<number>(0);
+  const [lastGainedText, setLastGainedText] = useState<string | null>(null);
+
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState<boolean>(false);
 
   useEffect(() => {
@@ -51,6 +59,14 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
     setIsAnswered(true);
     sounds.playWrong();
     setStreak(0);
+    setFastStreakCount(0);
+    setIsDoubleActive(false);
+
+    const gainedXp = 10;
+    const gainedCoins = 10;
+    setAccumulatedXp(prev => prev + gainedXp);
+    setAccumulatedCoins(prev => prev + gainedCoins);
+    setLastGainedText(`+${gainedCoins}🪙 +${gainedXp}XP`);
   };
 
   const handleAnswer = (choice: boolean) => {
@@ -59,34 +75,76 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
     setIsAnswered(true);
 
     const q = questions[currentIndex];
-    if (choice === q.isCorrect) {
+    const isCorrect = choice === q.isCorrect;
+    const isFast = timeLeft >= 4; // Answered in half the time (< 4 seconds used)
+
+    let gainedXp = 10;
+    let gainedCoins = 10;
+
+    if (isCorrect) {
       sounds.playCorrect();
       const speedBonus = timeLeft * 12;
       const points = 100 + streak * 20 + speedBonus;
       setScore(prev => prev + points);
       setStreak(prev => prev + 1);
+
+      if (matchType === 'solo') {
+        gainedXp = 10;
+        gainedCoins = 10;
+        setLastGainedText(`تدريب: +10🪙 +10XP`);
+      } else {
+        if (isFast) {
+          const newFastCount = fastStreakCount + 1;
+          setFastStreakCount(newFastCount);
+          if (newFastCount >= 3 || isDoubleActive) {
+            setIsDoubleActive(true);
+            gainedXp = 40;
+            gainedCoins = 40;
+            setLastGainedText(`🔥 مضاعف 2X: +40🪙 +40XP!`);
+          } else {
+            gainedXp = 20;
+            gainedCoins = 20;
+            setLastGainedText(`+20🪙 +20XP (${newFastCount}/3 للـ 2X)`);
+          }
+        } else {
+          setFastStreakCount(0);
+          setIsDoubleActive(false);
+          gainedXp = 20;
+          gainedCoins = 20;
+          setLastGainedText(`+20🪙 +20XP`);
+        }
+      }
     } else {
       sounds.playWrong();
       setStreak(0);
+      setFastStreakCount(0);
+      setIsDoubleActive(false);
+      gainedXp = 10;
+      gainedCoins = 10;
+      setLastGainedText(`+10🪙 +10XP`);
     }
+
+    setAccumulatedXp(prev => prev + gainedXp);
+    setAccumulatedCoins(prev => prev + gainedCoins);
   };
 
   const handleNext = () => {
     sounds.playClick();
+    setLastGainedText(null);
     if (currentIndex + 1 < questions.length) {
       setCurrentIndex(prev => prev + 1);
       setUserChoice(null);
       setIsAnswered(false);
       setTimeLeft(8);
     } else {
-      onFinish(score);
+      onFinish(score, { xpEarned: accumulatedXp, coinsEarned: accumulatedCoins });
     }
   };
 
   const handleSurrender = () => {
     sounds.playWrong();
     setShowSurrenderConfirm(false);
-    onFinish(score);
+    onFinish(score, { xpEarned: accumulatedXp, coinsEarned: accumulatedCoins });
   };
 
   if (questions.length === 0) {
@@ -104,22 +162,33 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
     <div className="max-w-2xl mx-auto px-4 py-8 animate-fadeIn">
       
       {/* HUD Header */}
-      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 p-4 rounded-2xl mb-6 backdrop-blur-md shadow-xl">
+      <div className="flex flex-wrap items-center justify-between bg-slate-900/90 border border-slate-800 p-4 rounded-2xl mb-6 backdrop-blur-md shadow-xl gap-3">
         <div className="flex items-center gap-3">
           <div className="text-xs font-black text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1.5 rounded-xl">
-            السؤال {currentIndex + 1} / {questions.length} (20 سؤال)
+            السؤال {currentIndex + 1} / {questions.length}
           </div>
-          {streak > 1 && (
-            <div className="flex items-center gap-1 text-xs font-black text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2.5 py-1 rounded-xl animate-pulse">
-              <Zap className="w-3.5 h-3.5" />
-              <span>كومبو x{streak}</span>
+
+          {matchType === 'solo' ? (
+            <div className="text-xs font-bold text-slate-300 bg-slate-800 px-2.5 py-1 rounded-xl">
+              🏋️ وضع التدريب السولو (10XP)
             </div>
-          )}
+          ) : isDoubleActive ? (
+            <div className="flex items-center gap-1.5 text-xs font-black text-amber-300 bg-amber-950/80 border border-amber-400 px-3 py-1 rounded-xl animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+              <Flame className="w-4 h-4 text-amber-400 animate-bounce" />
+              <span>🔥 ميزة الـ 2X مضاعفة! (40XP / 40🪙)</span>
+            </div>
+          ) : fastStreakCount > 0 ? (
+            <div className="flex items-center gap-1 text-xs font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-1 rounded-xl">
+              <Zap className="w-3.5 h-3.5 text-cyan-400" />
+              <span>سرعة متتالية: {fastStreakCount}/3 للـ 2X</span>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="text-sm font-black text-white">
-            النقاط: <span className="text-amber-400">{score}</span>
+          <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1 rounded-xl border border-slate-800 text-xs font-black">
+            <span className="text-amber-400">🪙 {accumulatedCoins}</span>
+            <span className="text-cyan-400">✨ {accumulatedXp} XP</span>
           </div>
 
           <button

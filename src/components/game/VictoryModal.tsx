@@ -35,7 +35,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
 
-      <div className="relative w-full max-w-md bg-slate-900 border border-purple-500/50 rounded-3xl p-6 sm:p-8 text-center shadow-[0_0_50px_rgba(147,51,234,0.4)] z-10 animate-fadeIn">
+      <div className="relative w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-3xl p-6 sm:p-8 text-center shadow-[0_0_50px_rgba(6,182,212,0.35)] z-10 animate-fadeIn">
         
         {/* Crest Icon */}
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 p-1 shadow-[0_0_30px_rgba(245,158,11,0.6)] mb-4 animate-bounce">
@@ -56,7 +56,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 mb-6 space-y-3">
           <div className="flex items-center justify-between text-xs font-bold border-b border-slate-800 pb-2">
             <span className="text-slate-400">نقاطك الإجمالية:</span>
-            <span className="text-white text-base font-black text-purple-400">{score} pts</span>
+            <span className="text-white text-base font-black text-cyan-400">{score} pts</span>
           </div>
 
           {opponentScore !== undefined && (
@@ -68,9 +68,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
 
           {/* Rewards Grid */}
           <div className="grid grid-cols-2 gap-3 pt-1">
-            <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-400" />
-              <span className="font-black text-purple-300 text-xs">+{xpEarned} XP</span>
+            <div className="p-2.5 rounded-xl bg-cyan-950/50 border border-cyan-500/30 flex items-center justify-center gap-2">
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span className="font-black text-cyan-300 text-xs">+{xpEarned} XP</span>
             </div>
             <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-500/30 flex items-center justify-center gap-2">
               <Coins className="w-4 h-4 text-amber-400" />
@@ -91,7 +91,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
 
           <button
             onClick={() => { onPlayAgain(); onClose(); sounds.playClick(); }}
-            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all"
+            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-sky-500 hover:from-cyan-500 hover:to-sky-400 text-white font-black text-xs shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center justify-center gap-2 transition-all"
           >
             <RotateCcw className="w-4 h-4" />
             <span>تحدي جديد</span>

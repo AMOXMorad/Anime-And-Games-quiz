@@ -198,15 +198,17 @@ export const narutoWorld: World = {
       id: 'n_triv_5',
       difficulty: 'easy',
       question: { ar: 'ما هو العنصر الأساسي لتشاكرا ناروتو الطبيعية؟', en: 'What is Naruto’s primary natural chakra nature?' },
-      options: [{ ar: 'عنصر الرياح (فوتون)', en: 'Wind Release' }, { ar: 'عنصر النار (كاتون)', en: 'Fire Release' }, { ar: 'عنصر البرق (رايتون)', en: 'Lightning Release' }, { ar: 'عنصر الماء (سويتون)', en: 'Water Release' }],
-      correctIndex: 0
+      options: [{ ar: 'عنصر الرياح', en: 'Wind Release' }, { ar: 'عنصر النار', en: 'Fire Release' }, { ar: 'عنصر البرق', en: 'Lightning Release' }, { ar: 'عنصر الماء', en: 'Water Release' }],
+      correctIndex: 0,
+      explanation: { ar: 'العنصر الطبيعي لناروتو هو الرياح (فوتون)، والذي طور به الراسن-شوريكين.', en: 'Naruto’s nature is Wind (Futon), used to develop Rasenshuriken.' }
     },
     {
       id: 'n_triv_6',
       difficulty: 'medium',
       question: { ar: 'من هو مبتكر تقنية نسخ الظل (كاجي بونشين نو جيتسو) وتقنية الإيدو تينسي؟', en: 'Who created the Shadow Clone jutsu and Edo Tensei?' },
-      options: [{ ar: 'توبيراما سينجو (الهوكاجي الثاني)', en: 'Tobirama Senju' }, { ar: 'هاشيراما سينجو', en: 'Hashirama Senju' }, { ar: 'أوروتشيمارو', en: 'Orochimaru' }, { ar: 'ميناتو ناميكازي', en: 'Minato Namikaze' }],
-      correctIndex: 0
+      options: [{ ar: 'توبيراما سينجو', en: 'Tobirama Senju' }, { ar: 'هاشيراما سينجو', en: 'Hashirama Senju' }, { ar: 'أوروتشيمارو', en: 'Orochimaru' }, { ar: 'ميناتو ناميكازي', en: 'Minato Namikaze' }],
+      correctIndex: 0,
+      explanation: { ar: 'توبيراما سينجو (الهوكاجي الثاني) ابتكر العديد من التقنيات المحرمة.', en: 'Tobirama Senju (2nd Hokage) invented numerous forbidden jutsu.' }
     },
     {
       id: 'n_triv_7',
@@ -226,14 +228,15 @@ export const narutoWorld: World = {
       id: 'n_triv_9',
       difficulty: 'hard',
       question: { ar: 'كم عدد البوابات الثمانية التي فتحها مايت غاي ضد مادارا؟', en: 'How many of the Eight Gates did Might Guy open against Madara?' },
-      options: [{ ar: 'جميع البوابات الثمانية (بوابة الموت)', en: 'All Eight Gates (Gate of Death)' }, { ar: 'سبع بوابات فقط', en: 'Seven Gates' }, { ar: 'ست بوابات', en: 'Six Gates' }, { ar: 'خمس بوابات', en: 'Five Gates' }],
-      correctIndex: 0
+      options: [{ ar: 'بوابة الموت (الثامنة)', en: 'The Eighth Gate (Gate of Death)' }, { ar: 'بوابة الدهشة (السابعة)', en: 'The Seventh Gate' }, { ar: 'بوابة البهجة (السادسة)', en: 'The Sixth Gate' }, { ar: 'بوابة الإغلاق (الخامسة)', en: 'The Fifth Gate' }],
+      correctIndex: 0,
+      explanation: { ar: 'فتح غاي البوابة الثامنة (بوابة الموت) واستخدم تقنية الفيل الليلي وغاي الليلي.', en: 'Guy opened all eight gates, executing the Night Guy technique.' }
     },
     {
       id: 'n_triv_10',
       difficulty: 'easy',
       question: { ar: 'ما اسم القرية التي ينتمي إليها غارا؟', en: 'What hidden village does Gaara belong to?' },
-      options: [{ ar: 'قرية الرمال المخفية (سوناغاكوري)', en: 'Hidden Sand Village' }, { ar: 'قرية المطر', en: 'Hidden Rain' }, { ar: 'قرية الضباب', en: 'Hidden Mist' }, { ar: 'قرية السحاب', en: 'Hidden Cloud' }],
+      options: [{ ar: 'قرية الرمال المخفية', en: 'Hidden Sand Village' }, { ar: 'قرية المطر', en: 'Hidden Rain' }, { ar: 'قرية الضباب', en: 'Hidden Mist' }, { ar: 'قرية السحاب', en: 'Hidden Cloud' }],
       correctIndex: 0
     },
     {
@@ -247,14 +250,14 @@ export const narutoWorld: World = {
       id: 'n_triv_12',
       difficulty: 'medium',
       question: { ar: 'ما اسم السيف العظيم ذو الأشواك الذي كان يحمله كيسامي هوشيغاكي؟', en: 'What was the name of Kisame’s chakra-eating blade?' },
-      options: [{ ar: 'ساميهادا (جلد القرش)', en: 'Samehada' }, { ar: 'كوبيكيريبوتشو', en: 'Kubikiribocho' }, { ar: 'كيبا', en: 'Kiba' }, { ar: 'هيراميكاري', en: 'Hiramekarei' }],
+      options: [{ ar: 'ساميهادا', en: 'Samehada' }, { ar: 'كوبيكيريبوتشو', en: 'Kubikiribocho' }, { ar: 'كيبا', en: 'Kiba' }, { ar: 'هيراميكاري', en: 'Hiramekarei' }],
       correctIndex: 0
     },
     {
       id: 'n_triv_13',
       difficulty: 'hard',
       question: { ar: 'ما هي المنظمة السرية في كونوها التي كان يقودها دانزو شيمورا؟', en: 'What was the secret division in Konoha led by Danzo Shimura?' },
-      options: [{ ar: 'جذور الأنبو (The Foundation / Root)', en: 'The Foundation (Root)' }, { ar: 'فرقة الصقور', en: 'Hawk Division' }, { ar: 'حراس الهوكاجي الاثني عشر', en: 'Twelve Guardian Ninja' }, { ar: 'شرطة كونوها', en: 'Konoha Police' }],
+      options: [{ ar: 'فرقة جذور الأنبو', en: 'The Foundation (Root)' }, { ar: 'فرقة الصقور', en: 'Hawk Division' }, { ar: 'حراس الهوكاجي الاثني عشر', en: 'Twelve Guardian Ninja' }, { ar: 'شرطة كونوها العسكرية', en: 'Konoha Military Police' }],
       correctIndex: 0
     },
     {
@@ -275,7 +278,7 @@ export const narutoWorld: World = {
       id: 'n_triv_16',
       difficulty: 'hard',
       question: { ar: 'ما اسم الجبل المقدس الذي تعلم فيه ناروتو وجيرايا نمط الناسك؟', en: 'What sacred mountain did Naruto and Jiraiya master Sage Mode on?' },
-      options: [{ ar: 'جبل ميوبوكو (Myoboku)', en: 'Mount Myoboku' }, { ar: 'كهف ريوتشي', en: 'Ryuchi Cave' }, { ar: 'غابة شيكوتسو', en: 'Shikkotsu Forest' }, { ar: 'وادي السحاب', en: 'Cloud Valley' }],
+      options: [{ ar: 'جبل ميوبوكو', en: 'Mount Myoboku' }, { ar: 'كهف ريوتشي', en: 'Ryuchi Cave' }, { ar: 'غابة شيكوتسو', en: 'Shikkotsu Forest' }, { ar: 'وادي السحاب', en: 'Cloud Valley' }],
       correctIndex: 0
     },
     {
@@ -303,8 +306,9 @@ export const narutoWorld: World = {
       id: 'n_triv_20',
       difficulty: 'hard',
       question: { ar: 'ما هو الكائن الأول الذي استدعته كاغويا أوتسوتسوكي وحولته إلى شجرة التشاكرا؟', en: 'What entity did Kaguya fuse with that became the Ten-Tails?' },
-      options: [{ ar: 'الوحش ذو الذيول العشرة (الجيوبي)', en: 'The Ten-Tails (Juubi)' }, { ar: 'الكيوبي والهاشيمي', en: 'Kurama & Gyuki' }, { ar: 'جدول الضفادع', en: 'Toad Elder' }, { ar: 'السوسانو المطلق', en: 'Ultimate Susanoo' }],
-      correctIndex: 0
+      options: [{ ar: 'الوحش ذو الذيول العشرة', en: 'The Ten-Tails' }, { ar: 'الوحش ذو الذيول التسعة', en: 'The Nine-Tails' }, { ar: 'وحش ذي الذيل الواحد', en: 'The One-Tail' }, { ar: 'السوسانو المطلق', en: 'Ultimate Susanoo' }],
+      correctIndex: 0,
+      explanation: { ar: 'الجيوبي (العشرة ذيول) نتج عن اندماج كاغويا مع الشجرة المقدسة.', en: 'The Ten-Tails formed when Kaguya merged with the God Tree.' }
     }
   ],
   trueFalseQuestions: [

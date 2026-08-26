@@ -23,11 +23,14 @@ interface MatchRecord {
   timestamp: string;
 }
 
+export type MatchType = 'solo' | 'random' | 'private';
+
 interface GameContextType {
   selectedWorld: World | null;
   selectedMode: GameModeType | null;
   selectedDifficulty: Difficulty;
   chaosFilter: ChaosFilter;
+  matchType: MatchType;
   isPlaying: boolean;
   isSuperMatchmaking: boolean;
   superRoomCode: string | null;
@@ -45,12 +48,13 @@ interface GameContextType {
   setDifficulty: (diff: Difficulty) => void;
   setChaosCategoryFilter: (filter: ChaosFilter) => void;
   startSoloGame: (world: World, mode: GameModeType, diff: Difficulty) => void;
+  startMatchmaking: (worldId: string, mode: GameModeType, diff: Difficulty) => void;
   startSuperMatchmaking: (worldId: string, diff: Difficulty) => void;
-  createPrivateRoom: (worldId: string, diff: Difficulty) => string;
+  createPrivateRoom: (worldId: string, diff: Difficulty, mode?: GameModeType) => string;
   joinPrivateRoom: (code: string) => { success: boolean; message: string };
   reconnectToActiveRoom: () => boolean;
   cancelMatchmaking: () => void;
-  finishMatch: (playerFinalScore: number, opponentFinalScore: number) => { won: boolean; xpEarned: number; coinsEarned: number; matchRecordId: string };
+  finishMatch: (playerFinalScore: number, opponentFinalScore: number, customRewards?: { xpEarned?: number; coinsEarned?: number }) => { won: boolean; xpEarned: number; coinsEarned: number; matchRecordId: string };
   exitGame: () => void;
 }
 
@@ -104,6 +108,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [selectedMode, setSelectedMode] = useState<GameModeType | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('medium');
   const [chaosFilter, setChaosFilter] = useState<ChaosFilter>('all');
+  const [matchType, setMatchType] = useState<MatchType>('solo');
   
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isSuperMatchmaking, setIsSuperMatchmaking] = useState<boolean>(false);
@@ -126,7 +131,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const selectWorld = (worldId: string) => {
-    const w = getWorldById(worldId);
+    const w = getWorldById(worldId, chaosFilter);
     if (w) setSelectedWorld(w);
     sounds.playClick();
   };
@@ -143,6 +148,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setChaosCategoryFilter = (filter: ChaosFilter) => {
     setChaosFilter(filter);
+    if (selectedWorld?.id === 'chaos_realm') {
+      const updated = getWorldById('chaos_realm', filter);
+      if (updated) setSelectedWorld(updated);
+    }
     sounds.playClick();
   };
 
@@ -150,22 +159,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedWorld(world);
     setSelectedMode(mode);
     setSelectedDifficulty(diff);
+    setMatchType('solo');
     setIsPlaying(true);
     setPlayerScore(0);
     setOpponentScore(0);
+    setOpponentProfile(null);
     sounds.playClick();
   };
 
-  const startSuperMatchmaking = (worldId: string, diff: Difficulty) => {
-    selectWorld(worldId);
-    setSelectedMode('super_challenge');
+  const startMatchmaking = (worldId: string, mode: GameModeType, diff: Difficulty) => {
+    const w = getWorldById(worldId, chaosFilter);
+    if (w) setSelectedWorld(w);
+    setSelectedMode(mode);
     setSelectedDifficulty(diff);
+    setMatchType('random');
     setIsSuperMatchmaking(true);
     sounds.playClick();
 
     setTimeout(() => {
-      const opp = DEMO_OPPONENTS[Math.floor(Math.random() * DEMO_OPPONENTS.length)];
-      setOpponentProfile(opp);
+      // Pick or create a themed opponent for this specific world
+      const matchedOpponent = DEMO_OPPONENTS[Math.floor(Math.random() * DEMO_OPPONENTS.length)];
+      setOpponentProfile(matchedOpponent);
       setIsSuperMatchmaking(false);
       setIsPlaying(true);
       setActiveSuperRound(1);
@@ -178,17 +192,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSavedActiveRoomCode(tempCode);
 
       sounds.playMatchFound();
-    }, 2500);
+    }, 2000);
   };
 
-  const createPrivateRoom = (worldId: string, diff: Difficulty): string => {
+  const startSuperMatchmaking = (worldId: string, diff: Difficulty) => {
+    startMatchmaking(worldId, 'super_challenge', diff);
+  };
+
+  const createPrivateRoom = (worldId: string, diff: Difficulty, mode: GameModeType = 'super_challenge'): string => {
     const code = generateRoomCode(worldId === 'naruto' ? 'NARUTO' : worldId === 'rezero' ? 'REZERO' : 'CHAOS');
     setSuperRoomCode(code);
     localStorage.setItem('ag_utopia_active_room_code', code);
     setSavedActiveRoomCode(code);
     setIsHost(true);
-    selectWorld(worldId);
-    setSelectedMode('super_challenge');
+    setMatchType('private');
+    const w = getWorldById(worldId, chaosFilter);
+    if (w) setSelectedWorld(w);
+    setSelectedMode(mode);
     setSelectedDifficulty(diff);
     sounds.playClick();
     return code;
@@ -201,7 +221,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('ag_utopia_active_room_code', upper);
     setSavedActiveRoomCode(upper);
     setIsHost(false);
+    setMatchType('private');
+    
+    // Infer world from code prefix
+    let targetWorldId = 'naruto';
+    if (upper.startsWith('REZE')) targetWorldId = 'rezero';
+    else if (upper.startsWith('CHAO')) targetWorldId = 'chaos_realm';
+    
+    const w = getWorldById(targetWorldId, chaosFilter);
+    if (w) setSelectedWorld(w);
     setSelectedMode('super_challenge');
+    
     const opp = DEMO_OPPONENTS[0];
     setOpponentProfile(opp);
     setIsPlaying(true);
@@ -219,6 +249,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSuperRoomCode(activeCode);
     setIsPlaying(true);
     setSelectedMode('super_challenge');
+    setMatchType('private');
     if (!selectedWorld) {
       setSelectedWorld(allWorlds[0]);
     }
@@ -237,16 +268,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sounds.playClick();
   };
 
-  const finishMatch = (playerFinal: number, opponentFinal: number) => {
+  const finishMatch = (playerFinal: number, opponentFinal: number, customRewards?: { xpEarned?: number; coinsEarned?: number }) => {
     const won = playerFinal >= opponentFinal;
-    const baseMultiplier = selectedDifficulty === 'hard' ? 1.5 : selectedDifficulty === 'medium' ? 1.2 : 1;
     
-    let xpEarned = Math.floor((playerFinal * 15 + (won ? 80 : 25)) * baseMultiplier);
-    let coinsEarned = Math.floor((playerFinal * 10 + (won ? 50 : 15)) * baseMultiplier);
+    let xpEarned = 0;
+    let coinsEarned = 0;
 
-    if (selectedWorld?.id === 'chaos_realm') {
-      xpEarned = Math.floor(xpEarned * 1.3);
-      coinsEarned = Math.floor(coinsEarned * 1.3);
+    if (customRewards && customRewards.xpEarned !== undefined && customRewards.coinsEarned !== undefined) {
+      // Use exact custom calculated rewards (e.g. from WhoAmI attempts or Double XP questions)
+      xpEarned = customRewards.xpEarned;
+      coinsEarned = customRewards.coinsEarned;
+    } else if (matchType === 'solo') {
+      // Training Solo: 10 XP & 10 Coins per question
+      const count = Math.max(1, Math.floor(playerFinal / 100) || 5);
+      xpEarned = count * 10;
+      coinsEarned = count * 10;
+    } else {
+      // Standard PvP / Private: 20 per correct, 10 per wrong
+      const count = Math.max(1, Math.floor(playerFinal / 100) || 5);
+      xpEarned = won ? (count * 20 + 20) : (count * 10);
+      coinsEarned = won ? (count * 20 + 20) : (count * 10);
     }
 
     addXp(xpEarned);
@@ -261,7 +302,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const matchRecord: MatchRecord = {
       matchId: matchRecordId,
-      roomCode: superRoomCode || 'SOLO_ROOM',
+      roomCode: superRoomCode || (matchType === 'solo' ? 'SOLO_PRACTICE' : 'RANDOM_QUEUE'),
       worldId: selectedWorld?.id || 'world',
       mode: selectedMode || 'mode',
       winner: won ? 'player' : 'opponent',
@@ -287,7 +328,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sounds.playWrong();
     }
 
-    return { won, xpEarned, coinsEarned, matchRecordId };
+    return { xpEarned, coinsEarned, won, matchRecordId };
   };
 
   const exitGame = () => {
@@ -307,6 +348,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectedMode,
         selectedDifficulty,
         chaosFilter,
+        matchType,
         isPlaying,
         isSuperMatchmaking,
         superRoomCode,
@@ -322,6 +364,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setDifficulty,
         setChaosCategoryFilter,
         startSoloGame,
+        startMatchmaking,
         startSuperMatchmaking,
         createPrivateRoom,
         joinPrivateRoom,

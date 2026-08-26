@@ -1,4 +1,4 @@
-import { World, WorldCategory, Difficulty, TriviaQuestion, TrueFalseQuestion, Character } from '../../types';
+import { World, WorldType, Difficulty, TriviaQuestion, TrueFalseQuestion, Character } from '../../types';
 import { narutoWorld } from './naruto';
 import { rezeroWorld } from './rezero';
 
@@ -71,14 +71,40 @@ export function getChaosTrueFalseQuestions(filter: ChaosFilter = 'all', difficul
   return allQ;
 }
 
-export function getWorldById(worldId: string): World | undefined {
+export function shuffleTriviaOptions(q: TriviaQuestion): TriviaQuestion {
+  const indexed = q.options.map((opt, i) => ({ opt, isOriginalCorrect: i === q.correctIndex }));
+  for (let i = indexed.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = indexed[i];
+    indexed[i] = indexed[j];
+    indexed[j] = temp;
+  }
+  const newOptions = indexed.map(item => item.opt) as [any, any, any, any];
+  const newCorrectIndex = indexed.findIndex(item => item.isOriginalCorrect);
+
+  return {
+    ...q,
+    options: newOptions,
+    correctIndex: newCorrectIndex >= 0 ? newCorrectIndex : 0
+  };
+}
+
+export function getWorldById(worldId: string, filter: ChaosFilter = 'all'): World | undefined {
   if (worldId === 'chaos_realm') {
     return {
       ...chaosWorld,
-      characters: getChaosCharacters('all'),
-      triviaQuestions: getChaosTriviaQuestions('all'),
-      trueFalseQuestions: getChaosTrueFalseQuestions('all')
+      characters: getChaosCharacters(filter),
+      triviaQuestions: getChaosTriviaQuestions(filter).map(shuffleTriviaOptions),
+      trueFalseQuestions: getChaosTrueFalseQuestions(filter)
     };
   }
-  return allWorlds.find(w => w.id === worldId);
+  const found = allWorlds.find(w => w.id === worldId);
+  if (found) {
+    return {
+      ...found,
+      triviaQuestions: found.triviaQuestions.map(shuffleTriviaOptions)
+    };
+  }
+  return undefined;
 }
+

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { World, GameModeType, Difficulty } from '../../types';
 import { useI18n } from '../../lib/i18n';
 import { useGame } from '../../context/GameContext';
+import { useTheme } from '../../context/ThemeContext';
 import { sounds } from '../../lib/sound';
 import { 
   X, 
@@ -20,7 +21,7 @@ interface WorldModalProps {
   world: World | null;
   isOpen: boolean;
   onClose: () => void;
-  openMatchmakingModal: (worldId: string, diff: Difficulty) => void;
+  openMatchmakingModal: (worldId: string, diff: Difficulty, mode?: GameModeType) => void;
 }
 
 export const WorldModal: React.FC<WorldModalProps> = ({
@@ -31,6 +32,8 @@ export const WorldModal: React.FC<WorldModalProps> = ({
 }) => {
   const { lang, t } = useI18n();
   const { startSoloGame } = useGame();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
 
   const [selectedMode, setSelectedMode] = useState<GameModeType>('trivia');
   const [difficulty, setDifficultyState] = useState<Difficulty>('medium');
@@ -88,57 +91,81 @@ export const WorldModal: React.FC<WorldModalProps> = ({
       {/* Backdrop */}
       <div 
         onClick={() => { onClose(); sounds.playClick(); }}
-        className="absolute inset-0 bg-black/80 backdrop-blur-md"
+        className={`absolute inset-0 backdrop-blur-md transition-opacity ${
+          isLight ? 'bg-slate-900/60' : 'bg-black/85'
+        }`}
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl z-10 max-h-[90vh] flex flex-col">
+      <div className={`relative w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl z-10 max-h-[92vh] flex flex-col transition-colors duration-300 ${
+        isLight ? 'bg-white border border-slate-200 text-slate-900' : 'bg-black border border-slate-800/80 text-white'
+      }`}>
         
-        {/* Banner Header */}
-        <div className="relative h-44 sm:h-52 w-full flex-shrink-0">
+        {/* Banner Header - Dark Surface Guaranteed */}
+        <div data-dark-surface="true" className="relative h-32 sm:h-36 w-full flex-shrink-0 bg-slate-950">
           <img src={world.banner} alt={world.name[lang]} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
 
           {/* Close button */}
           <button
+            type="button"
             onClick={() => { onClose(); sounds.playClick(); }}
-            className="absolute top-4 end-4 p-2 rounded-full bg-slate-950/70 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+            className="absolute top-3 end-3 p-2 rounded-full bg-black/60 hover:bg-black/90 border border-white/20 text-white transition-all cursor-pointer shadow-md"
+            title="إغلاق النافذة"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 text-white" />
           </button>
 
-          {/* World Title */}
-          <div className="absolute bottom-4 start-6 end-6">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">{world.icon}</span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white">{world.name[lang]}</h2>
+          {/* World Title & Tagline */}
+          <div className="absolute bottom-3 start-5 end-5">
+            <div className="flex items-center gap-2.5 mb-1">
+              <span className="text-2xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{world.icon}</span>
+              <h2 className="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] tracking-wide" style={{ color: '#ffffff' }}>
+                {world.name[lang]}
+              </h2>
             </div>
-            <p className="text-xs sm:text-sm text-slate-300 line-clamp-1">{world.tagline[lang]}</p>
+            <p className="text-xs sm:text-sm text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] line-clamp-1 font-medium" style={{ color: '#e2e8f0' }}>
+              {world.tagline[lang]}
+            </p>
           </div>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
           
           {/* Character Roster Preview */}
           {world.characters.length > 0 && (
             <div>
-              <h4 className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-purple-400" />
+              <h4 className={`text-xs font-bold mb-2 flex items-center gap-1.5 ${
+                isLight ? 'text-slate-600' : 'text-slate-400'
+              }`}>
+                <Users className="w-3.5 h-3.5 text-cyan-500" />
                 <span>أبرز شخصيات العالم ({world.characters.length})</span>
               </h4>
-              <div className="flex gap-3 overflow-x-auto pb-2 pe-1">
+              <div className="flex gap-2.5 overflow-x-auto pb-1 pe-1">
                 {world.characters.map(char => (
                   <div 
                     key={char.id} 
-                    className="flex-shrink-0 flex items-center gap-2 bg-slate-950/70 border border-slate-800 p-2 rounded-2xl"
+                    className={`flex-shrink-0 flex items-center gap-2 py-1.5 px-3 rounded-2xl border transition-all ${
+                      isLight 
+                        ? 'bg-slate-100/90 border-slate-200 text-slate-800' 
+                : 'bg-black/60 hover:bg-black border-slate-800 text-slate-200'
+                    }`}
                   >
-                    <div className="w-9 h-9 rounded-full bg-slate-800 overflow-hidden flex items-center justify-center border border-purple-500/40">
-                      <img src={char.avatar} alt={char.name[lang]} className="w-full h-full object-cover" />
+                    <div className="w-7 h-7 rounded-full bg-slate-800 overflow-hidden flex items-center justify-center border border-cyan-500/50 flex-shrink-0">
+                      <img src={char.avatar} alt={char.name[lang]} className="w-full h-full object-cover rounded-full" />
                     </div>
-                    <div className="text-start">
-                      <div className="text-xs font-bold text-white leading-tight">{char.name[lang]}</div>
-                      <div className="text-[10px] text-slate-400 line-clamp-1">{char.role[lang]}</div>
+                    <div className="text-start min-w-0">
+                      <div className={`text-xs font-bold leading-tight truncate ${
+                        isLight ? 'text-slate-900' : 'text-white'
+                      }`}>
+                        {char.name[lang]}
+                      </div>
+                      <div className={`text-[10px] line-clamp-1 ${
+                        isLight ? 'text-slate-500' : 'text-slate-400'
+                      }`}>
+                        {char.role[lang]}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -148,8 +175,10 @@ export const WorldModal: React.FC<WorldModalProps> = ({
 
           {/* Mode Selection */}
           <div>
-            <h4 className="text-xs font-bold text-slate-400 mb-3 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+            <h4 className={`text-xs font-bold mb-2 flex items-center gap-1.5 ${
+              isLight ? 'text-slate-600' : 'text-slate-400'
+            }`}>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>اختر نمط التحدي</span>
             </h4>
 
@@ -161,25 +190,45 @@ export const WorldModal: React.FC<WorldModalProps> = ({
                   <div
                     key={m.id}
                     onClick={() => { setSelectedMode(m.id); sounds.playClick(); }}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-gradient-to-b from-purple-950/60 to-slate-950 border-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.3)] ring-1 ring-purple-400'
-                        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                        ? isLight
+                          ? 'bg-cyan-50/90 border-2 border-cyan-500 shadow-[0_4px_16px_rgba(6,182,212,0.25)] ring-2 ring-cyan-400/40 text-slate-900'
+                          : 'bg-gradient-to-b from-cyan-950/80 to-slate-950 border-2 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.35)] ring-1 ring-cyan-400 text-white'
+                        : isLight
+                        ? 'bg-slate-50 hover:bg-white border-slate-200 hover:border-cyan-300 text-slate-700 shadow-sm'
+                        : 'bg-black/40 hover:bg-black/70 border-slate-800 hover:border-slate-700 text-slate-400'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <div className={`p-2 rounded-xl bg-gradient-to-tr ${m.color} text-white shadow-md`}>
-                          <IconComponent className="w-4 h-4" />
+                          <IconComponent className="w-4 h-4 text-white" />
                         </div>
                         {m.badge && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            isLight
+                              ? 'bg-slate-200 border-slate-300 text-slate-700'
+                              : 'bg-slate-800 border-slate-700 text-slate-300'
+                          }`}>
                             {m.badge}
                           </span>
                         )}
                       </div>
-                      <h5 className="font-bold text-sm text-white mb-1">{t(m.titleKey)}</h5>
-                      <p className="text-xs text-slate-400 leading-relaxed">{t(m.descKey)}</p>
+                      <h5 className={`font-black text-sm mb-1 ${
+                        isSelected
+                          ? isLight ? 'text-cyan-950 font-black' : 'text-white'
+                          : isLight ? 'text-slate-900' : 'text-white'
+                      }`}>
+                        {t(m.titleKey)}
+                      </h5>
+                      <p className={`text-[11px] leading-relaxed line-clamp-2 ${
+                        isSelected
+                          ? isLight ? 'text-slate-700 font-medium' : 'text-slate-300'
+                          : isLight ? 'text-slate-500' : 'text-slate-400'
+                      }`}>
+                        {t(m.descKey)}
+                      </p>
                     </div>
                   </div>
                 );
@@ -189,19 +238,25 @@ export const WorldModal: React.FC<WorldModalProps> = ({
 
           {/* Difficulty Picker */}
           <div>
-            <h4 className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-rose-400" />
+            <h4 className={`text-xs font-bold mb-2 flex items-center gap-1.5 ${
+              isLight ? 'text-slate-600' : 'text-slate-400'
+            }`}>
+              <Flame className="w-4 h-4 text-rose-500" />
               <span>{t('difficulty')}</span>
             </h4>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={() => { setDifficultyState('easy'); sounds.playClick(); }}
-                className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer ${
                   difficulty === 'easy'
-                    ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    ? isLight
+                      ? 'bg-emerald-100 border-2 border-emerald-500 text-emerald-900 font-black shadow-sm'
+                      : 'bg-emerald-950/90 border-2 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.35)] font-black'
+                    : isLight
+                    ? 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-white'
+                    : 'bg-black/60 border-slate-800 text-slate-400 hover:text-white hover:bg-black/90'
                 }`}
               >
                 {t('easy')}
@@ -210,10 +265,14 @@ export const WorldModal: React.FC<WorldModalProps> = ({
               <button
                 type="button"
                 onClick={() => { setDifficultyState('medium'); sounds.playClick(); }}
-                className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer ${
                   difficulty === 'medium'
-                    ? 'bg-amber-950/80 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    ? isLight
+                      ? 'bg-cyan-100 border-2 border-cyan-500 text-cyan-900 font-black shadow-sm'
+                      : 'bg-cyan-950/90 border-2 border-cyan-500 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)] font-black'
+                    : isLight
+                    ? 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-white'
+                    : 'bg-black/60 border-slate-800 text-slate-400 hover:text-white hover:bg-black/90'
                 }`}
               >
                 {t('medium')}
@@ -222,10 +281,14 @@ export const WorldModal: React.FC<WorldModalProps> = ({
               <button
                 type="button"
                 onClick={() => { setDifficultyState('hard'); sounds.playClick(); }}
-                className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer ${
                   difficulty === 'hard'
-                    ? 'bg-rose-950/80 border-rose-500 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.3)]'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    ? isLight
+                      ? 'bg-rose-100 border-2 border-rose-500 text-rose-900 font-black shadow-sm'
+                      : 'bg-rose-950/90 border-2 border-rose-500 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-black'
+                    : isLight
+                    ? 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-white'
+                    : 'bg-black/60 border-slate-800 text-slate-400 hover:text-white hover:bg-black/90'
                 }`}
               >
                 {t('hard')}
@@ -235,19 +298,68 @@ export const WorldModal: React.FC<WorldModalProps> = ({
 
         </div>
 
-        {/* Modal Footer CTA */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-4 flex-shrink-0">
-          <div className="text-xs text-slate-400">
-            الصعوبة: <span className="text-white font-bold">{t(difficulty)}</span>
+        {/* Modal Footer: 3 Match Options */}
+        <div className={`p-4 sm:p-5 border-t flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0 ${
+          isLight ? 'bg-slate-100 border-slate-200' : 'bg-black border-slate-800/80'
+        }`}>
+          <div className={`text-xs ${isLight ? 'text-slate-600 font-bold' : 'text-slate-400'}`}>
+            مستوى الصعوبة: <span className={`font-black ${isLight ? 'text-cyan-700' : 'text-cyan-300'}`}>{t(difficulty)}</span>
           </div>
 
-          <button
-            onClick={handleStart}
-            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            <span>{selectedMode === 'super_challenge' ? 'دخول لوبي السوبر 1v1' : t('startPlaying')}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            {/* Solo Challenge / Training */}
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                startSoloGame(world, selectedMode, difficulty);
+                onClose();
+              }}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-2xl transition-all shadow-sm cursor-pointer ${
+                isLight 
+                  ? 'bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 shadow-sm' 
+                  : 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200'
+              }`}
+              title="تدريب فردي (10 XP و 10 كوينز لكل سؤال)"
+            >
+              <Play className="w-3.5 h-3.5 fill-current text-cyan-500" />
+              <span>تحدي نفسك (سولو)</span>
+            </button>
+
+            {/* Random Matchmaking Queue */}
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                onClose();
+                openMatchmakingModal(world.id, difficulty, selectedMode);
+              }}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-sky-500 hover:from-cyan-500 hover:to-sky-400 text-white font-black text-xs rounded-2xl shadow-[0_4px_16px_rgba(6,182,212,0.4)] transition-all cursor-pointer ring-1 ring-white/20"
+              title="مطابقة عشوائية مع لاعبين في نفس العالم"
+            >
+              <Swords className="w-4 h-4 text-white" />
+              <span className="text-white">منافسة عشوائية</span>
+            </button>
+
+            {/* Private Custom Room */}
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                onClose();
+                openMatchmakingModal(world.id, difficulty, selectedMode);
+              }}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-2xl transition-all shadow-sm cursor-pointer ${
+                isLight
+                  ? 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 hover:border-indigo-400 text-indigo-800 shadow-sm'
+                  : 'bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/50 text-indigo-200'
+              }`}
+              title="إنشاء غرفة خاصة بكود أو الانضمام لصديق"
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-500" />
+              <span>مواجهة خاصة</span>
+            </button>
+          </div>
         </div>
 
       </div>

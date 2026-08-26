@@ -1,6 +1,6 @@
 export type Language = 'ar' | 'en';
 
-export type WorldCategory = 'anime' | 'games';
+export type WorldType = 'anime' | 'games';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -49,7 +49,7 @@ export interface TrueFalseQuestion {
 export interface World {
   id: string;
   name: LocalizedString;
-  category: WorldCategory;
+  category: WorldType;
   tagline: LocalizedString;
   description: LocalizedString;
   icon: string;
@@ -65,6 +65,34 @@ export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type ItemType = 'frame' | 'tag' | 'title' | 'avatar';
 export type UnlockType = 'store' | 'code' | 'level' | 'gift';
 
+export interface FrameConfig {
+  scale?: number; // scale multiplier for the frame PNG overlay, e.g. 1.35
+  avatar_scale?: number; // scale multiplier for the inner avatar circle, e.g. 0.85
+  offset_x?: number; // px shift X, e.g. 0
+  offset_y?: number; // px shift Y, e.g. 0
+}
+
+export type WorldCategory = 
+  | 'all' 
+  | 'naruto' 
+  | 'rezero' 
+  | 'general';
+
+export interface WorldCategoryMeta {
+  id: WorldCategory;
+  name_ar: string;
+  name_en: string;
+  icon: string;
+  badge_color: string;
+}
+
+export const WORLD_CATEGORIES: WorldCategoryMeta[] = [
+  { id: 'all', name_ar: 'الكل (جميع العوالم)', name_en: 'All Worlds', icon: '🌐', badge_color: 'border-slate-600 bg-slate-900 text-slate-300' },
+  { id: 'naruto', name_ar: 'ناروتو شيبودن', name_en: 'Naruto Shippuden', icon: '🍥', badge_color: 'border-orange-500/50 bg-orange-950/60 text-orange-300' },
+  { id: 'rezero', name_ar: 'ريزيرو (Re:Zero)', name_en: 'Re:Zero', icon: '🍎', badge_color: 'border-purple-500/50 bg-purple-950/60 text-purple-300' },
+  { id: 'general', name_ar: 'أساطير يوتوبيا (عام)', name_en: 'Utopia Legends', icon: '🔱', badge_color: 'border-rose-500/50 bg-rose-950/60 text-rose-300' },
+];
+
 export interface StoreItem {
   id: string;
   type: ItemType;
@@ -75,11 +103,13 @@ export interface StoreItem {
   price: number;
   rarity: ItemRarity;
   asset_url?: string; // Image URL / PNG or emoji
+  world_category?: WorldCategory;
   avatar_category?: 'naruto' | 'rezero' | 'games' | 'chaos';
   unlock_type?: UnlockType;
   required_level?: number;
   redeem_code?: string;
   target_user_tag?: string;
+  frame_config?: FrameConfig;
   css_style?: {
     border?: string;
     bg?: string;
@@ -123,6 +153,8 @@ export interface Profile {
   id: string;
   username: string;
   tag: string; // e.g. "1042"
+  bio?: string; // Player self description
+  last_username_change_at?: string; // ISO date of last name change (14 days cooldown)
   is_guest: boolean;
   role: 'user' | 'admin' | 'moderator';
   is_banned: boolean;
@@ -139,6 +171,7 @@ export interface Profile {
   showcase_tags: string[];   // up to 5
   showcase_frames: string[]; // up to 5
   showcase_avatars?: string[]; // up to 5
+  inventory?: string[]; // list of owned store items
   redeemed_codes?: string[]; // Promo codes redeemed by this user
   stats: UserStats;
   created_at: string;
