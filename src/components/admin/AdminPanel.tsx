@@ -40,9 +40,13 @@ import {
   UploadCloud,
   FileImage,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Globe,
+  Megaphone
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { WorldBuilderPanel } from './WorldBuilderPanel';
+import { NotificationBroadcaster } from './NotificationBroadcaster';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -63,7 +67,7 @@ export const AdminPanel: React.FC = () => {
   } = useSocial();
   const { lang, t } = useI18n();
 
-  const [activeTab, setActiveTab] = useState<'create_item' | 'promo_codes' | 'store_manager' | 'gifts' | 'users'>('create_item');
+  const [activeTab, setActiveTab] = useState<'world_builder' | 'notifications' | 'create_item' | 'promo_codes' | 'store_manager' | 'gifts' | 'users'>('world_builder');
   const [storeItems, setStoreItems] = useState<StoreItem[]>(() => getActiveStoreItems());
 
   // User Profile & Inventory Inspector Modal State
@@ -689,6 +693,31 @@ export const AdminPanel: React.FC = () => {
 
       {/* Main Tabs */}
       <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+        
+        <button
+          onClick={() => { setActiveTab('world_builder'); sounds.playClick(); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === 'world_builder'
+              ? 'bg-gradient-to-r from-cyan-600 via-teal-500 to-sky-500 text-white shadow-lg ring-2 ring-cyan-400'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Globe className="w-4 h-4 text-cyan-300" />
+          <span>🌐 بناء العوالم بالإكسيل (World Studio)</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('notifications'); sounds.playClick(); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === 'notifications'
+              ? 'bg-gradient-to-r from-amber-600 to-yellow-500 text-black font-black shadow-lg ring-2 ring-amber-400'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Megaphone className="w-4 h-4 text-amber-300" />
+          <span>📢 بث الإشعارات الحية (Broadcast)</span>
+        </button>
+
         <button
           onClick={() => { setActiveTab('create_item'); sounds.playClick(); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
@@ -710,7 +739,7 @@ export const AdminPanel: React.FC = () => {
           }`}
         >
           <KeyRound className="w-4 h-4 text-amber-400" />
-          <span>🔑 منشئ ومدير الأكواد الترويجية ({promoCodes.length})</span>
+          <span>🔑 منشئ ومدير الأكواد ({promoCodes.length})</span>
         </button>
 
         <button
@@ -722,7 +751,7 @@ export const AdminPanel: React.FC = () => {
           }`}
         >
           <Sliders className="w-4 h-4" />
-          <span>إدارة أسعار وعناصر المتجر ({storeItems.length})</span>
+          <span>إدارة المتجر ({storeItems.length})</span>
         </button>
 
         <button
@@ -734,7 +763,7 @@ export const AdminPanel: React.FC = () => {
           }`}
         >
           <Gift className="w-4 h-4" />
-          <span>إرسال هدايا ومكافآت للاعبين</span>
+          <span>إرسال هدايا</span>
         </button>
 
         <button
@@ -746,9 +775,23 @@ export const AdminPanel: React.FC = () => {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>إدارة اللاعبين وقاعدة البيانات</span>
+          <span>إدارة اللاعبين</span>
         </button>
       </div>
+
+      {/* ============================================================== */}
+      {/* TAB 0.1: WORLD BUILDER STUDIO (EXCEL + IMAGES)                  */}
+      {/* ============================================================== */}
+      {activeTab === 'world_builder' && (
+        <WorldBuilderPanel />
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 0.2: LIVE BROADCAST NOTIFICATIONS & ANNOUNCEMENTS           */}
+      {/* ============================================================== */}
+      {activeTab === 'notifications' && (
+        <NotificationBroadcaster />
+      )}
 
       {/* ============================================================== */}
       {/* TAB 1: IN-BROWSER ITEM DESIGNER & CREATOR                      */}

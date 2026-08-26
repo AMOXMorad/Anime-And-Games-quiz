@@ -66,6 +66,9 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
   const [waitingForOpponentAnswer, setWaitingForOpponentAnswer] = useState<boolean>(false);
   const [opponentPendingQuestion, setOpponentPendingQuestion] = useState<string | null>(null);
 
+  const ROUND_TIME = 600; // 10 minutes round
+  const [roundTimeLeft, setRoundTimeLeft] = useState<number>(ROUND_TIME);
+
   // Match Resolution State
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [winner, setWinner] = useState<'player' | 'opponent' | null>(null);
@@ -74,6 +77,32 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState<boolean>(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // 10-Minute Round Timer
+  useEffect(() => {
+    if (isFlippingCoin || isGameOver) return;
+    if (roundTimeLeft <= 0) {
+      handleRoundTimeout();
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setRoundTimeLeft(prev => {
+        if (prev <= 10 && prev > 0) sounds.playTimerTick();
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [roundTimeLeft, isFlippingCoin, isGameOver]);
+
+  const handleRoundTimeout = () => {
+    sounds.playWrong();
+    setIsGameOver(true);
+    setWinner('opponent');
+    setGameResultReason('انتهى الوقت الإجمالي للجولة (10 دقائق)!');
+    setScore(200);
+  };
 
   // Initialize Match & Secret Characters
   useEffect(() => {
@@ -440,8 +469,17 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
           </div>
         </div>
 
+        {/* 10-Minute Round Timer */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-black">
+          <span className="text-cyan-400">⏱️</span>
+          <span className={`font-mono ${roundTimeLeft <= 60 ? 'text-rose-400 animate-pulse' : 'text-slate-200'}`}>
+            {Math.floor(roundTimeLeft / 60)}:{(roundTimeLeft % 60).toString().padStart(2, '0')}
+          </span>
+          <span className="text-[10px] text-slate-500 hidden sm:inline">جولة 10د</span>
+        </div>
+
         {/* Turn Status Banner */}
-        <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-black">
+        <div className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-black">
           <span className={`w-2 h-2 rounded-full ${currentTurn === 'player' ? 'bg-emerald-400 animate-ping' : 'bg-purple-400'}`} />
           <span className={currentTurn === 'player' ? 'text-emerald-400' : 'text-purple-400'}>
             {currentTurn === 'player' ? 'دورك الآن (اطرح سؤالك أو خمن)' : 'دور المنافس يفكر...'}

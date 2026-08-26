@@ -23,26 +23,14 @@ interface SocialContextType {
   submitReport: (type: 'player_report' | 'bug_report' | 'question_error', title: string, details: string, reportedUserId?: string) => void;
   // Admin Methods
   adminSendGift: (userId: string, coins: number, title_ar: string, title_en: string, msg_ar: string, msg_en: string, item?: StoreItem) => void;
+  adminBroadcastNotification: (title_ar: string, title_en: string, msg_ar: string, msg_en: string, coins?: number, item?: StoreItem, targetUserId?: string) => void;
+  adminDeleteNotification: (notificationId: string) => void;
   adminBanUser: (userId: string, reason: string) => void;
   adminResolveReport: (reportId: string) => void;
   adminUpdateSuggestionStatus: (id: string, status: 'under_review' | 'planned' | 'implemented' | 'declined') => void;
 }
 
 const SocialContext = createContext<SocialContextType | null>(null);
-
-const DEFAULT_WELCOME_NOTIF: UserNotification = {
-  id: 'notif_welcome',
-  user_id: 'current',
-  sender_admin_id: 'founder_admin',
-  title_ar: '🎁 هدية ترحيبية من مؤسس يوتوبيا!',
-  title_en: '🎁 Welcome Gift from The Grand Founder!',
-  message_ar: 'أهلاً بك في منصة AG Utopia! استلم 200 عملة مجانية كهدية انضمام لتخوض بها أولى مبارياتك وتشتري إطارك المفضل من المتجر.',
-  message_en: 'Welcome to AG Utopia! Claim 200 free coins as a newcomer bonus to conquer your first matches and customize your profile in the Store.',
-  gift_coins: 200,
-  is_claimed: false,
-  is_read: false,
-  created_at: new Date().toISOString()
-};
 
 export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { profile, updateCoins } = useAuth();
@@ -103,27 +91,19 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   ]);
 
-  // Notifications (with persistent claim state)
+  // Notifications (Pure dynamic from admin / custom notifications)
   const [notifications, setNotifications] = useState<UserNotification[]>(() => {
     try {
       const claimedIds: string[] = JSON.parse(localStorage.getItem('ag_utopia_claimed_notifs') || '[]');
       const customNotifs: UserNotification[] = JSON.parse(localStorage.getItem('ag_utopia_custom_notifications') || '[]');
       
-      const welcome = {
-        ...DEFAULT_WELCOME_NOTIF,
-        is_claimed: claimedIds.includes(DEFAULT_WELCOME_NOTIF.id),
-        is_read: claimedIds.includes(DEFAULT_WELCOME_NOTIF.id)
-      };
-
-      const customWithClaimed = customNotifs.map(n => ({
+      return customNotifs.map(n => ({
         ...n,
-        is_claimed: claimedIds.includes(n.id) || n.is_claimed,
-        is_read: claimedIds.includes(n.id) || n.is_read
+        is_claimed: claimedIds.includes(n.id) || !!n.is_claimed,
+        is_read: claimedIds.includes(n.id) || !!n.is_read
       }));
-
-      return [welcome, ...customWithClaimed];
     } catch (e) {
-      return [DEFAULT_WELCOME_NOTIF];
+      return [];
     }
   });
 
@@ -338,6 +318,57 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     confetti({ particleCount: 100, spread: 80 });
   };
 
+  const adminBroadcastNotification = (
+    title_ar: string,
+    title_en: string,
+    msg_ar: string,
+    msg_en: string,
+    coins: number = 0,
+    item?: StoreItem,
+    targetUserId: string = 'all'
+  ) => {
+    const newNotif: UserNotification = {
+      id: 'notif_broadcast_' + Math.random().toString(36).substring(2, 9),
+      user_id: targetUserId,
+      sender_admin_id: profile?.id || 'admin',
+      title_ar,
+      title_en,
+      message_ar: msg_ar,
+      message_en: msg_en,
+      gift_coins: coins,
+      gift_item_id: item?.id,
+      gift_item: item,
+      is_claimed: false,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+
+    setNotifications(prev => [newNotif, ...prev]);
+
+    try {
+      const customNotifs: UserNotification[] = JSON.parse(localStorage.getItem('ag_utopia_custom_notifications') || '[]');
+      customNotifs.unshift(newNotif);
+      localStorage.setItem('ag_utopia_custom_notifications', JSON.stringify(customNotifs.slice(0, 100)));
+    } catch (e) {
+      console.error(e);
+    }
+
+    sounds.playVictory();
+    confetti({ particleCount: 100, spread: 80 });
+  };
+
+  const adminDeleteNotification = (notificationId: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    try {
+      const customNotifs: UserNotification[] = JSON.parse(localStorage.getItem('ag_utopia_custom_notifications') || '[]');
+      const filtered = customNotifs.filter(n => n.id !== notificationId);
+      localStorage.setItem('ag_utopia_custom_notifications', JSON.stringify(filtered));
+    } catch (e) {
+      console.error(e);
+    }
+    sounds.playClick();
+  };
+
   const adminBanUser = (userId: string, reason: string) => {
     sounds.playWrong();
     alert(`تم حظر المستخدم ${userId} بنجاح! السبب: ${reason}`);
@@ -379,6 +410,8 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         upvoteSuggestion,
         submitReport,
         adminSendGift,
+        adminBroadcastNotification,
+        adminDeleteNotification,
         adminBanUser,
         adminResolveReport,
         adminUpdateSuggestionStatus

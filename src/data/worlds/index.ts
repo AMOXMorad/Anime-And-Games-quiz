@@ -2,10 +2,54 @@ import { World, WorldType, Difficulty, TriviaQuestion, TrueFalseQuestion, Charac
 import { narutoWorld } from './naruto';
 import { rezeroWorld } from './rezero';
 
-export const allWorlds: World[] = [
+export const BUILT_IN_WORLDS: World[] = [
   narutoWorld,
   rezeroWorld,
 ];
+
+// Helper to get custom worlds created by admin in localStorage
+export function getCustomWorlds(): World[] {
+  try {
+    const saved = localStorage.getItem('ag_utopia_custom_worlds');
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    console.error('Failed to load custom worlds from localStorage', e);
+    return [];
+  }
+}
+
+// Helper to get all active worlds (built-in + admin created)
+export function getAllWorlds(): World[] {
+  const custom = getCustomWorlds();
+  return [...BUILT_IN_WORLDS, ...custom];
+}
+
+// Backward-compatible export
+export const allWorlds: World[] = getAllWorlds();
+
+export function saveCustomWorld(world: World): void {
+  try {
+    const existing = getCustomWorlds();
+    const filtered = existing.filter(w => w.id !== world.id);
+    const updated = [...filtered, { ...world, isCustom: true, created_at: world.created_at || new Date().toISOString() }];
+    localStorage.setItem('ag_utopia_custom_worlds', JSON.stringify(updated));
+    // Trigger storage event for UI reactivity if needed
+    window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+  } catch (e) {
+    console.error('Failed to save custom world', e);
+  }
+}
+
+export function deleteCustomWorld(worldId: string): void {
+  try {
+    const existing = getCustomWorlds();
+    const updated = existing.filter(w => w.id !== worldId);
+    localStorage.setItem('ag_utopia_custom_worlds', JSON.stringify(updated));
+    window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+  } catch (e) {
+    console.error('Failed to delete custom world', e);
+  }
+}
 
 export const chaosWorld: World = {
   id: 'chaos_realm',
@@ -13,14 +57,14 @@ export const chaosWorld: World = {
     ar: 'عالم الفوضى الكونية',
     en: 'The Chaos Cosmic Realm'
   },
-  category: 'anime', // Multi-category
+  category: 'anime', // Default representation
   tagline: {
     ar: 'حيث تندمج كل العوالم، الأساطير، والأسئلة في ساحة واحدة لا ترحم',
     en: 'Where all worlds, legends, and challenges collide into one ruthless arena'
   },
   description: {
-    ar: 'تحدَّ عقلك في عالم يجمع عشوائياً أسئلة وشخصيات جميع عوالم الأنمي والألعاب دفعة واحدة. من يتقنه يحصل على لقب "The Ultimate King of the Universe"!',
-    en: 'Test your mastery across a blended cosmos of anime and games. Master it to claim "The Ultimate King of the Universe" title!'
+    ar: 'تحدَّ عقلك في عالم يجمع عشوائياً أسئلة وشخصيات جميع عوالم الأنمي والألعاب والأبطال الخارقين دفعة واحدة مع مكافأة +30% XP!',
+    en: 'Test your mastery across a blended cosmos of anime, games, and superheroes with +30% XP bonus!'
   },
   icon: '🔮',
   banner: 'https://cdn.myanimelist.net/images/anime/13/17405.jpg',
@@ -31,25 +75,25 @@ export const chaosWorld: World = {
   trueFalseQuestions: []
 };
 
-export type ChaosFilter = 'all' | 'anime' | 'games';
+export type ChaosFilter = 'all' | 'anime' | 'games' | 'superheroes' | WorldType[];
+
+export function getFilteredWorlds(filter: ChaosFilter = 'all'): World[] {
+  const currentWorlds = getAllWorlds();
+  if (filter === 'all') return currentWorlds;
+  if (Array.isArray(filter)) {
+    if (filter.length === 0) return currentWorlds;
+    return currentWorlds.filter(w => filter.includes(w.category));
+  }
+  return currentWorlds.filter(w => w.category === filter);
+}
 
 export function getChaosCharacters(filter: ChaosFilter = 'all'): Character[] {
-  let list = allWorlds;
-  if (filter === 'anime') {
-    list = allWorlds.filter(w => w.category === 'anime');
-  } else if (filter === 'games') {
-    list = allWorlds.filter(w => w.category === 'games');
-  }
+  const list = getFilteredWorlds(filter);
   return list.flatMap(w => w.characters);
 }
 
 export function getChaosTriviaQuestions(filter: ChaosFilter = 'all', difficulty?: Difficulty): TriviaQuestion[] {
-  let list = allWorlds;
-  if (filter === 'anime') {
-    list = allWorlds.filter(w => w.category === 'anime');
-  } else if (filter === 'games') {
-    list = allWorlds.filter(w => w.category === 'games');
-  }
+  const list = getFilteredWorlds(filter);
   const allQ = list.flatMap(w => w.triviaQuestions);
   if (difficulty) {
     return allQ.filter(q => q.difficulty === difficulty);
@@ -58,12 +102,7 @@ export function getChaosTriviaQuestions(filter: ChaosFilter = 'all', difficulty?
 }
 
 export function getChaosTrueFalseQuestions(filter: ChaosFilter = 'all', difficulty?: Difficulty): TrueFalseQuestion[] {
-  let list = allWorlds;
-  if (filter === 'anime') {
-    list = allWorlds.filter(w => w.category === 'anime');
-  } else if (filter === 'games') {
-    list = allWorlds.filter(w => w.category === 'games');
-  }
+  const list = getFilteredWorlds(filter);
   const allQ = list.flatMap(w => w.trueFalseQuestions);
   if (difficulty) {
     return allQ.filter(q => q.difficulty === difficulty);
@@ -98,7 +137,8 @@ export function getWorldById(worldId: string, filter: ChaosFilter = 'all'): Worl
       trueFalseQuestions: getChaosTrueFalseQuestions(filter)
     };
   }
-  const found = allWorlds.find(w => w.id === worldId);
+  const currentWorlds = getAllWorlds();
+  const found = currentWorlds.find(w => w.id === worldId);
   if (found) {
     return {
       ...found,
@@ -107,4 +147,3 @@ export function getWorldById(worldId: string, filter: ChaosFilter = 'all'): Worl
   }
   return undefined;
 }
-

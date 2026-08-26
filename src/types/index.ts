@@ -1,6 +1,6 @@
 export type Language = 'ar' | 'en';
 
-export type WorldType = 'anime' | 'games';
+export type WorldType = 'anime' | 'games' | 'superheroes';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -59,6 +59,8 @@ export interface World {
   characters: Character[];
   triviaQuestions: TriviaQuestion[];
   trueFalseQuestions: TrueFalseQuestion[];
+  isCustom?: boolean;
+  created_at?: string;
 }
 
 export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary';

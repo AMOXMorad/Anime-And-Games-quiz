@@ -4,8 +4,8 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocialProvider, useSocial } from './context/SocialContext';
 import { GameProvider, useGame } from './context/GameContext';
-import { allWorlds, getWorldById } from './data/worlds';
-import { Difficulty, GameModeType } from './types';
+import { getAllWorlds, getWorldById } from './data/worlds';
+import { Difficulty, GameModeType, World } from './types';
 import { sounds } from './lib/sound';
 
 // Layout
@@ -36,7 +36,7 @@ import { TriviaMode } from './components/game/TriviaMode';
 import { TrueFalseMode } from './components/game/TrueFalseMode';
 import { WhoAmIMode } from './components/game/WhoAmIMode';
 import { SuperChallengeArena } from './components/game/SuperChallengeArena';
-import { Film, Gamepad2, Globe, Sparkles, LogIn } from 'lucide-react';
+import { Film, Gamepad2, Globe, Sparkles, LogIn, Shield } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
   const { lang, t } = useI18n();
@@ -56,7 +56,16 @@ const MainAppContent: React.FC = () => {
   } = useGame();
 
   const [currentView, setCurrentView] = useState<string>('worlds'); // worlds | store | profile | admin
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<'all' | 'anime' | 'games'>('all');
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<'all' | 'anime' | 'games' | 'superheroes'>('all');
+  const [worldsList, setWorldsList] = useState<World[]>(() => getAllWorlds());
+
+  useEffect(() => {
+    const handleWorldsUpdate = () => {
+      setWorldsList(getAllWorlds());
+    };
+    window.addEventListener('ag_utopia_worlds_updated', handleWorldsUpdate);
+    return () => window.removeEventListener('ag_utopia_worlds_updated', handleWorldsUpdate);
+  }, []);
 
   // Modals state
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -132,7 +141,7 @@ const MainAppContent: React.FC = () => {
     setVictoryModalOpen(true);
   };
 
-  const filteredWorlds = allWorlds.filter(w => {
+  const filteredWorlds = worldsList.filter(w => {
     if (activeCategoryFilter === 'all') return true;
     return w.category === activeCategoryFilter;
   });
@@ -321,21 +330,55 @@ const MainAppContent: React.FC = () => {
                       <Gamepad2 className="w-3.5 h-3.5" />
                       <span>{t('gamesOnly')}</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => { setActiveCategoryFilter('superheroes'); sounds.playClick(); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        activeCategoryFilter === 'superheroes'
+                          ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-md'
+                          : isLight 
+                          ? 'text-slate-600 hover:text-slate-900 hover:bg-white/80' 
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>{t('superheroesOnly')}</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Standard Worlds Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredWorlds
-                    .filter(w => w.id !== 'chaos_realm')
-                    .map(world => (
-                      <WorldCard
-                        key={world.id}
-                        world={world}
-                        onOpen={handleOpenWorldModal}
-                      />
-                    ))}
-                </div>
+                {filteredWorlds.filter(w => w.id !== 'chaos_realm').length === 0 ? (
+                  <div className={`p-12 text-center rounded-3xl border ${
+                    isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-black/60 border-slate-800 text-slate-300'
+                  }`}>
+                    <Shield className="w-12 h-12 text-cyan-400 mx-auto mb-3 animate-pulse" />
+                    <h3 className="text-lg font-black mb-1">عوالم {activeCategoryFilter === 'superheroes' ? 'الأبطال الخارقين (مارفل ودي سي)' : 'هذا التصنيف'} قيد التجهيز</h3>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto mb-4">
+                      يمكن للمسؤول (الأدمن) إضافة عوالم جديدة وشخصيات وأسئلة عبر نظام رفع الإكسيل من لوحة التحكم لتظهر فوراً هنا وفي عالم الفوضى.
+                    </p>
+                    {profile?.role === 'admin' && (
+                      <button
+                        onClick={() => { setCurrentView('admin'); sounds.playClick(); }}
+                        className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-sky-500 text-white text-xs font-bold rounded-xl shadow-md"
+                      >
+                        + إنشاء وإضافة عالم جديد الآن
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredWorlds
+                      .filter(w => w.id !== 'chaos_realm')
+                      .map(world => (
+                        <WorldCard
+                          key={world.id}
+                          world={world}
+                          onOpen={handleOpenWorldModal}
+                        />
+                      ))}
+                  </div>
+                )}
 
               </div>
             )}

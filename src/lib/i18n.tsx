@@ -34,13 +34,16 @@ export const translations: Translations = {
   allWorlds: { ar: 'كافة العوالم', en: 'All Worlds' },
   anime: { ar: 'أنمي', en: 'Anime' },
   games: { ar: 'ألعاب', en: 'Games' },
+  superheroes: { ar: 'أبطال خارقين', en: 'Superheroes' },
   animeOnly: { ar: 'عوالم الأنمي', en: 'Anime Worlds' },
   gamesOnly: { ar: 'عوالم الألعاب', en: 'Game Worlds' },
+  superheroesOnly: { ar: 'عوالم الأبطال الخارقين', en: 'Superhero Worlds' },
   chaosRealm: { ar: 'عالم الفوضى الكونية', en: 'The Chaos Realm' },
-  chaosSubtitle: { ar: 'امزج كل الأنمي والألعاب في ساحة أسئلة موحدة لا ترحم', en: 'Blend all anime & games into one relentless arena' },
+  chaosSubtitle: { ar: 'امزج كل الأنمي والألعاب والأبطال الخارقين في ساحة أسئلة موحدة لا ترحم', en: 'Blend all anime, games & superheroes into one relentless arena' },
   chaosAll: { ar: 'الفوضى الشاملة (كل شيء)', en: 'Absolute Chaos (All)' },
   chaosAnimeOnly: { ar: 'كل عوالم الأنمي فقط', en: 'All Anime Worlds Only' },
   chaosGamesOnly: { ar: 'كل عوالم الألعاب فقط', en: 'All Games Worlds Only' },
+  chaosSuperheroesOnly: { ar: 'كل عوالم الأبطال الخارقين', en: 'All Superhero Worlds' },
 
   // Modes
   modeWhoAmI: { ar: 'من أنا؟ (خمن الشخصية)', en: 'Who Am I? (Deduction)' },

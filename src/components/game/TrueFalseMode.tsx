@@ -15,11 +15,15 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
   const { lang, t } = useI18n();
   const { exitGame, matchType } = useGame();
 
+  const QUESTION_DURATION = 10;
+  const HALF_TIME = 5;
+  const isChaos = world.id === 'chaos_realm';
+
   const [questions, setQuestions] = useState<TrueFalseQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userChoice, setUserChoice] = useState<boolean | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
-  const [timeLeft, setTimeLeft] = useState<number>(8); // 8-second fast blitz timer
+  const [timeLeft, setTimeLeft] = useState<number>(QUESTION_DURATION);
   const [score, setScore] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
 
@@ -62,11 +66,11 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
     setFastStreakCount(0);
     setIsDoubleActive(false);
 
-    const gainedXp = 10;
     const gainedCoins = 10;
+    const gainedXp = isChaos ? 13 : 10;
     setAccumulatedXp(prev => prev + gainedXp);
     setAccumulatedCoins(prev => prev + gainedCoins);
-    setLastGainedText(`+${gainedCoins}🪙 +${gainedXp}XP`);
+    setLastGainedText(isChaos ? `+10🪙 +13XP (+30%)` : `+10🪙 +10XP`);
   };
 
   const handleAnswer = (choice: boolean) => {
@@ -76,7 +80,7 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
 
     const q = questions[currentIndex];
     const isCorrect = choice === q.isCorrect;
-    const isFast = timeLeft >= 4; // Answered in half the time (< 4 seconds used)
+    const isFast = timeLeft > HALF_TIME; // Answered in less than half time (< 5 seconds used)
 
     let gainedXp = 10;
     let gainedCoins = 10;
@@ -98,30 +102,32 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
           setFastStreakCount(newFastCount);
           if (newFastCount >= 3 || isDoubleActive) {
             setIsDoubleActive(true);
-            gainedXp = 40;
             gainedCoins = 40;
-            setLastGainedText(`🔥 مضاعف 2X: +40🪙 +40XP!`);
+            gainedXp = isChaos ? 52 : 40;
+            setLastGainedText(isChaos ? `🔥 مضاعف 2X + فوضى (+30%): +40🪙 +52XP!` : `🔥 مضاعف 2X: +40🪙 +40XP!`);
           } else {
-            gainedXp = 20;
             gainedCoins = 20;
-            setLastGainedText(`+20🪙 +20XP (${newFastCount}/3 للـ 2X)`);
+            gainedXp = isChaos ? 26 : 20;
+            setLastGainedText(isChaos ? `+20🪙 +26XP (${newFastCount}/3 للـ 2X)` : `+20🪙 +20XP (${newFastCount}/3 للـ 2X)`);
           }
         } else {
+          // Correct but slow (took >= 5 seconds) -> resets streak
           setFastStreakCount(0);
           setIsDoubleActive(false);
-          gainedXp = 20;
           gainedCoins = 20;
-          setLastGainedText(`+20🪙 +20XP`);
+          gainedXp = isChaos ? 26 : 20;
+          setLastGainedText(isChaos ? `+20🪙 +26XP (أبطأ من 5 ثوانٍ)` : `+20🪙 +20XP (أبطأ من 5 ثوانٍ)`);
         }
       }
     } else {
+      // Wrong answer -> resets streak immediately
       sounds.playWrong();
       setStreak(0);
       setFastStreakCount(0);
       setIsDoubleActive(false);
-      gainedXp = 10;
       gainedCoins = 10;
-      setLastGainedText(`+10🪙 +10XP`);
+      gainedXp = isChaos ? 13 : 10;
+      setLastGainedText(isChaos ? `+10🪙 +13XP (+30%)` : `+10🪙 +10XP`);
     }
 
     setAccumulatedXp(prev => prev + gainedXp);
@@ -135,7 +141,7 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
       setCurrentIndex(prev => prev + 1);
       setUserChoice(null);
       setIsAnswered(false);
-      setTimeLeft(8);
+      setTimeLeft(QUESTION_DURATION);
     } else {
       onFinish(score, { xpEarned: accumulatedXp, coinsEarned: accumulatedCoins });
     }
@@ -156,7 +162,7 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
   }
 
   const currentQ = questions[currentIndex];
-  const timerPercentage = (timeLeft / 8) * 100;
+  const timerPercentage = (timeLeft / QUESTION_DURATION) * 100;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 animate-fadeIn">

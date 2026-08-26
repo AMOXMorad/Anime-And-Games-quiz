@@ -16,15 +16,19 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
   const { lang, t } = useI18n();
   const { exitGame, matchType } = useGame();
 
+  const QUESTION_DURATION = 30;
+  const HALF_TIME = 15;
+  const isChaos = world.id === 'chaos_realm';
+
   const [questions, setQuestions] = useState<TriviaQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
-  const [timeLeft, setTimeLeft] = useState<number>(18);
+  const [timeLeft, setTimeLeft] = useState<number>(QUESTION_DURATION);
   const [score, setScore] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
   
-  // Fast Speed Double XP Tracker (>= 3 fast consecutive answers in <= 9s)
+  // Fast Speed Double XP Tracker (>= 3 consecutive fast & correct answers in < 15s)
   const [fastStreakCount, setFastStreakCount] = useState<number>(0);
   const [isDoubleActive, setIsDoubleActive] = useState<boolean>(false);
   const [accumulatedXp, setAccumulatedXp] = useState<number>(0);
@@ -50,7 +54,7 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 4) sounds.playTimerTick();
+        if (prev <= 5) sounds.playTimerTick();
         return prev - 1;
       });
     }, 1000);
@@ -65,12 +69,12 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
     setFastStreakCount(0);
     setIsDoubleActive(false);
     
-    // Reward on wrong/timeout: 10 XP & 10 Coins
-    const gainedXp = 10;
+    // Reward on wrong/timeout: 10 Coins, 10 XP (or 13 XP in Chaos)
     const gainedCoins = 10;
+    const gainedXp = isChaos ? 13 : 10;
     setAccumulatedXp(prev => prev + gainedXp);
     setAccumulatedCoins(prev => prev + gainedCoins);
-    setLastGainedText(`+${gainedCoins}🪙 +${gainedXp}XP`);
+    setLastGainedText(isChaos ? `+10🪙 +13XP (+30%)` : `+10🪙 +10XP`);
   };
 
   const handleSelectOption = (idx: number) => {
@@ -80,7 +84,7 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
 
     const q = questions[currentIndex];
     const isCorrect = idx === q.correctIndex;
-    const isFast = timeLeft >= 9; // Answered in half the time (< 9 seconds used)
+    const isFast = timeLeft > HALF_TIME; // Answered in less than half time (< 15 seconds used)
 
     let gainedXp = 10;
     let gainedCoins = 10;
@@ -97,38 +101,38 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
         gainedCoins = 10;
         setLastGainedText(`تدريب: +10🪙 +10XP`);
       } else {
-        // PvP / Private match
+        // PvP / Private / Chaos match
         if (isFast) {
           const newFastCount = fastStreakCount + 1;
           setFastStreakCount(newFastCount);
           if (newFastCount >= 3 || isDoubleActive) {
             setIsDoubleActive(true);
-            gainedXp = 40;
             gainedCoins = 40;
-            setLastGainedText(`🔥 مضاعف 2X: +40🪙 +40XP!`);
+            gainedXp = isChaos ? 52 : 40;
+            setLastGainedText(isChaos ? `🔥 مضاعف 2X + فوضى (+30%): +40🪙 +52XP!` : `🔥 مضاعف 2X: +40🪙 +40XP!`);
           } else {
-            gainedXp = 20;
             gainedCoins = 20;
-            setLastGainedText(`+20🪙 +20XP (${newFastCount}/3 للـ 2X)`);
+            gainedXp = isChaos ? 26 : 20;
+            setLastGainedText(isChaos ? `+20🪙 +26XP (${newFastCount}/3 للـ 2X)` : `+20🪙 +20XP (${newFastCount}/3 للـ 2X)`);
           }
         } else {
-          // Correct but slow
+          // Correct but slow (took >= 15 seconds) -> resets streak
           setFastStreakCount(0);
           setIsDoubleActive(false);
-          gainedXp = 20;
           gainedCoins = 20;
-          setLastGainedText(`+20🪙 +20XP`);
+          gainedXp = isChaos ? 26 : 20;
+          setLastGainedText(isChaos ? `+20🪙 +26XP (أبطأ من 15 ثانية)` : `+20🪙 +20XP (أبطأ من 15 ثانية)`);
         }
       }
     } else {
-      // Wrong answer
+      // Wrong answer -> resets streak immediately
       sounds.playWrong();
       setStreak(0);
       setFastStreakCount(0);
       setIsDoubleActive(false);
-      gainedXp = 10;
       gainedCoins = 10;
-      setLastGainedText(`+10🪙 +10XP`);
+      gainedXp = isChaos ? 13 : 10;
+      setLastGainedText(isChaos ? `+10🪙 +13XP (+30%)` : `+10🪙 +10XP`);
     }
 
     setAccumulatedXp(prev => prev + gainedXp);
@@ -142,7 +146,7 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
       setCurrentIndex(prev => prev + 1);
       setSelectedOption(null);
       setIsAnswered(false);
-      setTimeLeft(18);
+      setTimeLeft(QUESTION_DURATION);
     } else {
       onFinish(score, { xpEarned: accumulatedXp, coinsEarned: accumulatedCoins });
     }
@@ -163,7 +167,7 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
   }
 
   const currentQ = questions[currentIndex];
-  const timerPercentage = (timeLeft / 18) * 100;
+  const timerPercentage = (timeLeft / QUESTION_DURATION) * 100;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 animate-fadeIn">
