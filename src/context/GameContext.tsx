@@ -1,27 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { World, GameModeType, Difficulty, Character, TriviaQuestion, TrueFalseQuestion, Profile } from '../types';
-import { allWorlds, getWorldById, getChaosCharacters, getChaosTriviaQuestions, getChaosTrueFalseQuestions, ChaosFilter } from '../data/worlds';
+import { World, GameModeType, Difficulty, Profile, MatchRecord, SuperRoundResult } from '../types';
+import { allWorlds, getWorldById, ChaosFilter } from '../data/worlds';
 import { useAuth } from './AuthContext';
 import { sounds } from '../lib/sound';
-import { generateRoomCode } from '../lib/supabase';
-
-interface SuperRoundResult {
-  round: number;
-  playerScore: number;
-  opponentScore: number;
-  roundType: 'true_false' | 'trivia' | 'who_am_i';
-}
-
-interface MatchRecord {
-  matchId: string;
-  roomCode: string;
-  worldId: string;
-  mode: string;
-  winner: 'player' | 'opponent';
-  playerFinalScore: number;
-  opponentFinalScore: number;
-  timestamp: string;
-}
 
 export type MatchType = 'solo' | 'random' | 'private';
 
@@ -54,55 +35,241 @@ interface GameContextType {
   joinPrivateRoom: (code: string) => { success: boolean; message: string };
   reconnectToActiveRoom: () => boolean;
   cancelMatchmaking: () => void;
-  finishMatch: (playerFinalScore: number, opponentFinalScore: number, customRewards?: { xpEarned?: number; coinsEarned?: number }) => { won: boolean; xpEarned: number; coinsEarned: number; matchRecordId: string };
+  finishMatch: (
+    playerFinalScore: number, 
+    opponentFinalScore: number, 
+    customRewards?: { xpEarned?: number; coinsEarned?: number },
+    explicitWon?: boolean
+  ) => { won: boolean; xpEarned: number; coinsEarned: number; matchRecordId: string };
   exitGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
 
-const DEMO_OPPONENTS: Profile[] = [
-  {
-    id: 'opp_sasuke',
-    username: 'Shadow_Sasuke',
-    tag: '3941',
+// Themed challenger bots to ensure variety and prevent matching against oneself
+const THEMED_CHALLENGERS: Record<string, Profile[]> = {
+  naruto: [
+    {
+      id: 'bot_itachi_uchiha',
+      username: 'Itachi_Tsukuyomi',
+      tag: '1092',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 2400,
+      xp: 4500,
+      level: 19,
+      active_frame_id: 'frame_sharingan',
+      active_tag_id: 'tag_lightning_godspeed',
+      active_title_id: 'title_king_shinobi',
+      showcase_titles: ['title_king_shinobi'],
+      showcase_tags: ['tag_lightning_godspeed'],
+      showcase_frames: ['frame_sharingan'],
+      stats: { totalMatches: 48, wins: 40, correctAnswers: 390, streak: 8, whoAmIWins: 14, triviaWins: 18, superChallengeWins: 8 },
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'bot_kakashi_hatake',
+      username: 'Kakashi_CopyNinja',
+      tag: '7734',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 1800,
+      xp: 3200,
+      level: 16,
+      active_frame_id: 'frame_curse_flame',
+      active_tag_id: 'tag_rookie',
+      active_title_id: 'title_novice',
+      showcase_titles: ['title_novice'],
+      showcase_tags: ['tag_rookie'],
+      showcase_frames: ['frame_curse_flame'],
+      stats: { totalMatches: 36, wins: 27, correctAnswers: 280, streak: 5, whoAmIWins: 10, triviaWins: 11, superChallengeWins: 6 },
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'bot_minato_namikaze',
+      username: 'Yellow_Flash_Minato',
+      tag: '0404',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 3500,
+      xp: 6200,
+      level: 24,
+      active_frame_id: 'frame_founder_exclusive',
+      active_tag_id: 'tag_founder_trident',
+      active_title_id: 'title_king_shinobi',
+      showcase_titles: ['title_king_shinobi'],
+      showcase_tags: ['tag_founder_trident'],
+      showcase_frames: ['frame_founder_exclusive'],
+      stats: { totalMatches: 65, wins: 56, correctAnswers: 580, streak: 12, whoAmIWins: 20, triviaWins: 24, superChallengeWins: 12 },
+      created_at: new Date().toISOString()
+    }
+  ],
+  rezero: [
+    {
+      id: 'bot_rem_oni',
+      username: 'Rem_BlueOni',
+      tag: '4490',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 2100,
+      xp: 3800,
+      level: 17,
+      active_frame_id: 'frame_curse_flame',
+      active_tag_id: 'tag_rezero_apple',
+      active_title_id: 'title_death_return',
+      showcase_titles: ['title_death_return'],
+      showcase_tags: ['tag_rezero_apple'],
+      showcase_frames: ['frame_curse_flame'],
+      stats: { totalMatches: 42, wins: 33, correctAnswers: 340, streak: 7, whoAmIWins: 12, triviaWins: 15, superChallengeWins: 6 },
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'bot_emilia_halfelf',
+      username: 'Emilia_Frost',
+      tag: '9901',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 1600,
+      xp: 2900,
+      level: 14,
+      active_frame_id: 'frame_founder_exclusive',
+      active_tag_id: 'tag_rezero_apple',
+      active_title_id: 'title_novice',
+      showcase_titles: ['title_novice'],
+      showcase_tags: ['tag_rezero_apple'],
+      showcase_frames: ['frame_founder_exclusive'],
+      stats: { totalMatches: 30, wins: 22, correctAnswers: 230, streak: 4, whoAmIWins: 8, triviaWins: 10, superChallengeWins: 4 },
+      created_at: new Date().toISOString()
+    }
+  ],
+  default: [
+    {
+      id: 'bot_eren_rumbling',
+      username: 'Eren_Freedom',
+      tag: '2091',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 2200,
+      xp: 3900,
+      level: 18,
+      active_frame_id: 'frame_curse_flame',
+      active_tag_id: 'tag_lightning_godspeed',
+      active_title_id: 'title_king_shinobi',
+      showcase_titles: ['title_king_shinobi'],
+      showcase_tags: ['tag_lightning_godspeed'],
+      showcase_frames: ['frame_curse_flame'],
+      stats: { totalMatches: 45, wins: 36, correctAnswers: 360, streak: 7, whoAmIWins: 13, triviaWins: 15, superChallengeWins: 8 },
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'bot_levi_ackerman',
+      username: 'Captain_Levi',
+      tag: '9910',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 3100,
+      xp: 5400,
+      level: 22,
+      active_frame_id: 'frame_sharingan',
+      active_tag_id: 'tag_founder_trident',
+      active_title_id: 'title_king_shinobi',
+      showcase_titles: ['title_king_shinobi'],
+      showcase_tags: ['tag_founder_trident'],
+      showcase_frames: ['frame_sharingan'],
+      stats: { totalMatches: 58, wins: 50, correctAnswers: 510, streak: 11, whoAmIWins: 18, triviaWins: 22, superChallengeWins: 10 },
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'bot_peter_spiderman',
+      username: 'Web_Slinger_Peter',
+      tag: '3321',
+      is_guest: false,
+      role: 'user',
+      is_banned: false,
+      coins: 1900,
+      xp: 3300,
+      level: 15,
+      active_frame_id: 'frame_curse_flame',
+      active_tag_id: 'tag_rookie',
+      active_title_id: 'title_novice',
+      showcase_titles: ['title_novice'],
+      showcase_tags: ['tag_rookie'],
+      showcase_frames: ['frame_curse_flame'],
+      stats: { totalMatches: 34, wins: 26, correctAnswers: 260, streak: 5, whoAmIWins: 9, triviaWins: 12, superChallengeWins: 5 },
+      created_at: new Date().toISOString()
+    }
+  ]
+};
+
+// Safe function to pick an opponent guaranteed to NOT be the current logged-in user
+export function getSafeRandomOpponent(worldId: string, currentProfile: Profile | null): Profile {
+  const currentId = currentProfile?.id;
+  const currentUsername = (currentProfile?.username || '').toLowerCase().trim();
+
+  // 1. Gather all candidates
+  const candidates: Profile[] = [];
+
+  // Real registered users
+  try {
+    const saved = localStorage.getItem('ag_utopia_registered_users');
+    if (saved) {
+      const list: Profile[] = JSON.parse(saved);
+      list.forEach(u => {
+        if (!u.is_banned && u.id !== currentId && u.username.toLowerCase().trim() !== currentUsername) {
+          candidates.push(u);
+        }
+      });
+    }
+  } catch (e) {}
+
+  // Themed bots for this world
+  const worldBots = THEMED_CHALLENGERS[worldId] || [];
+  const defaultBots = THEMED_CHALLENGERS['default'] || [];
+  const allBots = [...worldBots, ...defaultBots];
+
+  allBots.forEach(bot => {
+    if (bot.id !== currentId && bot.username.toLowerCase().trim() !== currentUsername) {
+      candidates.push(bot);
+    }
+  });
+
+  if (candidates.length > 0) {
+    const randomPick = candidates[Math.floor(Math.random() * candidates.length)];
+    return randomPick;
+  }
+
+  // Absolute fallback: Generate an instant unique challenger
+  const randomTag = Math.floor(1000 + Math.random() * 9000).toString();
+  return {
+    id: `challenger_utopia_${randomTag}`,
+    username: `Rival_Shinobi_${randomTag}`,
+    tag: randomTag,
     is_guest: false,
     role: 'user',
     is_banned: false,
-    coins: 1400,
-    xp: 2800,
-    level: 15,
+    coins: 1500,
+    xp: 2600,
+    level: 12,
     active_frame_id: 'frame_sharingan',
     active_tag_id: 'tag_lightning_godspeed',
-    active_title_id: 'title_king_shinobi',
-    showcase_titles: ['title_king_shinobi'],
+    active_title_id: 'title_novice',
+    showcase_titles: ['title_novice'],
     showcase_tags: ['tag_lightning_godspeed'],
     showcase_frames: ['frame_sharingan'],
-    stats: { totalMatches: 35, wins: 28, correctAnswers: 240, streak: 6, whoAmIWins: 10, triviaWins: 12, superChallengeWins: 6 },
+    stats: { totalMatches: 25, wins: 19, correctAnswers: 180, streak: 4, whoAmIWins: 6, triviaWins: 9, superChallengeWins: 4 },
     created_at: new Date().toISOString()
-  },
-  {
-    id: 'opp_subaru',
-    username: 'Natsuki_Knight',
-    tag: '8812',
-    is_guest: false,
-    role: 'user',
-    is_banned: false,
-    coins: 1100,
-    xp: 1900,
-    level: 11,
-    active_frame_id: 'frame_curse_flame',
-    active_tag_id: 'tag_rezero_apple',
-    active_title_id: 'title_death_return',
-    showcase_titles: ['title_death_return'],
-    showcase_tags: ['tag_rezero_apple'],
-    showcase_frames: ['frame_curse_flame'],
-    stats: { totalMatches: 24, wins: 18, correctAnswers: 160, streak: 4, whoAmIWins: 6, triviaWins: 8, superChallengeWins: 4 },
-    created_at: new Date().toISOString()
-  }
-];
+  };
+}
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { addXp, updateCoins, updateStats } = useAuth();
+  const { profile, recordMatchResult } = useAuth();
 
   const [selectedWorld, setSelectedWorld] = useState<World | null>(null);
   const [selectedMode, setSelectedMode] = useState<GameModeType | null>(null);
@@ -164,6 +331,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPlayerScore(0);
     setOpponentScore(0);
     setOpponentProfile(null);
+    setSuperRoomCode(null);
     sounds.playClick();
   };
 
@@ -174,22 +342,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedDifficulty(diff);
     setMatchType('random');
     setIsSuperMatchmaking(true);
+    setSuperRoomCode(null);
     sounds.playClick();
 
     setTimeout(() => {
-      // Pick or create a themed opponent for this specific world
-      const matchedOpponent = DEMO_OPPONENTS[Math.floor(Math.random() * DEMO_OPPONENTS.length)];
+      // Pick a safe, distinct opponent guaranteed not to be oneself
+      const matchedOpponent = getSafeRandomOpponent(worldId, profile);
       setOpponentProfile(matchedOpponent);
       setIsSuperMatchmaking(false);
       setIsPlaying(true);
       setActiveSuperRound(1);
       setPlayerScore(0);
       setOpponentScore(0);
+      setSuperRoomCode(null);
 
-      const tempCode = generateRoomCode(worldId.toUpperCase().slice(0, 4));
-      setSuperRoomCode(tempCode);
-      localStorage.setItem('ag_utopia_active_room_code', tempCode);
-      setSavedActiveRoomCode(tempCode);
+      localStorage.removeItem('ag_utopia_active_room_code');
+      setSavedActiveRoomCode(null);
 
       sounds.playMatchFound();
     }, 2000);
@@ -200,7 +368,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const createPrivateRoom = (worldId: string, diff: Difficulty, mode: GameModeType = 'super_challenge'): string => {
-    const code = generateRoomCode(worldId === 'naruto' ? 'NARUTO' : worldId === 'rezero' ? 'REZERO' : 'CHAOS');
+    const prefix = worldId.toUpperCase().slice(0, 4) || 'ROOM';
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const code = `${prefix}-${randomDigits}`;
+
     setSuperRoomCode(code);
     localStorage.setItem('ag_utopia_active_room_code', code);
     setSavedActiveRoomCode(code);
@@ -217,6 +388,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const joinPrivateRoom = (code: string): { success: boolean; message: string } => {
     if (!code.trim()) return { success: false, message: 'كود الغرفة غير صالح' };
     const upper = code.toUpperCase().trim();
+    
+    // Prevent joining own room
+    if (upper === superRoomCode && isHost) {
+      return { success: false, message: 'لا يمكنك الانضمام لغرفتك الخاصة بنفسك! شارك الكود مع صديقك.' };
+    }
+
     setSuperRoomCode(upper);
     localStorage.setItem('ag_utopia_active_room_code', upper);
     setSavedActiveRoomCode(upper);
@@ -227,12 +404,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let targetWorldId = 'naruto';
     if (upper.startsWith('REZE')) targetWorldId = 'rezero';
     else if (upper.startsWith('CHAO')) targetWorldId = 'chaos_realm';
+    else if (upper.startsWith('ATTA') || upper.startsWith('TITA')) targetWorldId = 'attack_on_titan';
     
     const w = getWorldById(targetWorldId, chaosFilter);
     if (w) setSelectedWorld(w);
     setSelectedMode('super_challenge');
     
-    const opp = DEMO_OPPONENTS[0];
+    const opp = getSafeRandomOpponent(targetWorldId, profile);
     setOpponentProfile(opp);
     setIsPlaying(true);
     setActiveSuperRound(1);
@@ -254,7 +432,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSelectedWorld(allWorlds[0]);
     }
     if (!opponentProfile) {
-      setOpponentProfile(DEMO_OPPONENTS[0]);
+      setOpponentProfile(getSafeRandomOpponent(selectedWorld?.id || 'naruto', profile));
     }
     sounds.playVictory();
     return true;
@@ -268,8 +446,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sounds.playClick();
   };
 
-  const finishMatch = (playerFinal: number, opponentFinal: number, customRewards?: { xpEarned?: number; coinsEarned?: number }) => {
-    const won = playerFinal >= opponentFinal;
+  const finishMatch = (
+    playerFinal: number, 
+    opponentFinal: number, 
+    customRewards?: { xpEarned?: number; coinsEarned?: number },
+    explicitWon?: boolean
+  ) => {
+    const won = explicitWon !== undefined ? explicitWon : (playerFinal >= opponentFinal);
     
     let xpEarned = 0;
     let coinsEarned = 0;
@@ -290,9 +473,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       coinsEarned = won ? (count * 20 + 20) : (count * 10);
     }
 
-    addXp(xpEarned);
-    updateCoins(coinsEarned);
-    updateStats(won, playerFinal, selectedMode === 'super_challenge' ? 'super' : selectedMode === 'who_am_i' ? 'who_am_i' : 'trivia');
+    const modeType: 'who_am_i' | 'trivia' | 'super' = selectedMode === 'super_challenge' ? 'super' : selectedMode === 'who_am_i' ? 'who_am_i' : 'trivia';
+    const correctCount = Math.max(0, Math.floor(playerFinal / 100));
+
+    // Perform atomic update across profile and registered user database
+    recordMatchResult(xpEarned, coinsEarned, won, correctCount, modeType);
 
     // Archive Match with unique timestamped ID
     const now = new Date();

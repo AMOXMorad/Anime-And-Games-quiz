@@ -15,6 +15,13 @@ interface AuthContextType {
   logout: () => void;
   updateCoins: (amount: number) => void;
   addXp: (amount: number) => { levelUp: boolean; newLevel: number; rewardCoins: number };
+  recordMatchResult: (
+    xpEarned: number,
+    coinsEarned: number,
+    won: boolean,
+    correctCount: number,
+    mode: 'who_am_i' | 'trivia' | 'super'
+  ) => { levelUp: boolean; newLevel: number; rewardCoins: number; updatedProfile: Profile | null };
   equipItem: (itemId: string, type: 'frame' | 'tag' | 'title' | 'avatar', assetUrl?: string) => void;
   updateShowcases: (type: 'titles' | 'tags' | 'frames' | 'avatars', items: string[]) => void;
   updateStats: (win: boolean, correctCount: number, mode: 'who_am_i' | 'trivia' | 'super') => void;
@@ -125,6 +132,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const saveSession = (p: Profile, inv: string[]) => {
     localStorage.setItem('ag_utopia_session', JSON.stringify({ profile: p, inventory: inv }));
+    
+    // Automatically keep registered users database in sync
+    try {
+      const saved = localStorage.getItem('ag_utopia_registered_users');
+      const list: Profile[] = saved ? JSON.parse(saved) : [];
+      const index = list.findIndex(u => u.id === p.id || u.username.toLowerCase() === p.username.toLowerCase());
+      if (index !== -1) {
+        list[index] = { ...list[index], ...p };
+        localStorage.setItem('ag_utopia_registered_users', JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent('ag_utopia_users_updated'));
+      } else if (!p.is_guest) {
+        list.push(p);
+        localStorage.setItem('ag_utopia_registered_users', JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent('ag_utopia_users_updated'));
+      }
+    } catch (e) {
+      console.error('Failed to sync registered users', e);
+    }
   };
 
   const loginAsGuest = async (customName?: string): Promise<Profile> => {
@@ -278,6 +303,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(updated);
     saveSession(updated, inventory);
     return { levelUp, newLevel, rewardCoins };
+  };
+
+  const recordMatchResult = (
+    xpEarned: number,
+    coinsEarned: number,
+    won: boolean,
+    correctCount: number,
+    mode: 'who_am_i' | 'trivia' | 'super'
+  ) => {
+    if (!profile) return { levelUp: false, newLevel: 1, rewardCoins: 0, updatedProfile: null };
+
+    const oldLevel = profile.level;
+    const cleanXpGained = Math.max(0, xpEarned);
+    const newXp = profile.xp + cleanXpGained;
+    const { level: newLevel } = calculateLevel(newXp);
+
+    let rewardCoins = 0;
+    let levelUp = false;
+
+    if (newLevel > oldLevel) {
+      levelUp = true;
+      rewardCoins = (newLevel - oldLevel) * 40;
+      sounds.playLevelUp();
+      confetti({
+        particleCount: 90,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+    }
+
+    const cleanCoinsGained = Math.max(0, coinsEarned);
+    const finalCoins = Math.max(0, profile.coins + cleanCoinsGained + rewardCoins);
+
+    const stats = { ...profile.stats };
+    stats.totalMatches += 1;
+    if (won) {
+      stats.wins += 1;
+      stats.streak += 1;
+      if (mode === 'who_am_i') stats.whoAmIWins += 1;
+      if (mode === 'trivia') stats.triviaWins += 1;
+      if (mode === 'super') stats.superChallengeWins += 1;
+    } else {
+      stats.streak = 0;
+    }
+    stats.correctAnswers += Math.max(0, correctCount);
+
+    const updated: Profile = {
+      ...profile,
+      xp: newXp,
+      level: newLevel,
+      coins: finalCoins,
+      stats
+    };
+
+    setProfile(updated);
+    saveSession(updated, inventory);
+    return { levelUp, newLevel, rewardCoins, updatedProfile: updated };
   };
 
   const equipItem = (itemId: string, type: 'frame' | 'tag' | 'title' | 'avatar', assetUrl?: string) => {
@@ -740,6 +822,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         updateCoins,
         addXp,
+        recordMatchResult,
         equipItem,
         updateShowcases,
         updateStats,

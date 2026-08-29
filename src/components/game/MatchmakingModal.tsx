@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Difficulty, GameModeType } from '../../types';
 import { useGame } from '../../context/GameContext';
 import { useI18n } from '../../lib/i18n';
@@ -30,13 +30,22 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
     isSuperMatchmaking, 
     superRoomCode, 
     cancelMatchmaking,
-    selectedWorld
+    selectedWorld,
+    isPlaying,
+    startSoloGame
   } = useGame();
 
   const [tab, setTab] = useState<'random' | 'private'>('random');
   const [inputCode, setInputCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+
+  // Auto-close modal when random match is found
+  useEffect(() => {
+    if (isPlaying && isOpen && !superRoomCode) {
+      onClose();
+    }
+  }, [isPlaying, isOpen, superRoomCode]);
 
   if (!isOpen) return null;
 

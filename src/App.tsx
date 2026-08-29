@@ -118,10 +118,11 @@ const MainAppContent: React.FC = () => {
     setMatchmakingModalOpen(true);
   };
 
-  const handleSoloGameFinish = (score: number, customRewards?: { xpEarned: number; coinsEarned: number }) => {
-    const res = finishMatch(score, 0, customRewards);
+  const handleSoloGameFinish = (score: number, customRewards?: { xpEarned: number; coinsEarned: number }, isWon?: boolean) => {
+    const finalWon = isWon !== undefined ? isWon : score > 0;
+    const res = finishMatch(score, 0, customRewards, finalWon);
     setLastMatchResult({
-      won: true,
+      won: res.won,
       score,
       xpEarned: res.xpEarned,
       coinsEarned: res.coinsEarned

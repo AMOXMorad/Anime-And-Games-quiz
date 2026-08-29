@@ -263,3 +263,21 @@ export interface GameRoom {
   host_profile?: Profile;
   guest_profile?: Profile;
 }
+
+export interface MatchRecord {
+  matchId: string;
+  roomCode: string;
+  worldId: string;
+  mode: GameModeType | string;
+  winner: 'player' | 'opponent';
+  playerFinalScore: number;
+  opponentFinalScore: number;
+  timestamp: string;
+}
+
+export interface SuperRoundResult {
+  round: number;
+  playerScore: number;
+  opponentScore: number;
+  winner: 'player' | 'opponent';
+}

@@ -28,7 +28,7 @@ import confetti from 'canvas-confetti';
 interface WhoAmIModeProps {
   world: World;
   difficulty: Difficulty;
-  onFinish: (score: number, customRewards?: { xpEarned: number; coinsEarned: number }) => void;
+  onFinish: (score: number, customRewards?: { xpEarned: number; coinsEarned: number }, isWon?: boolean) => void;
 }
 
 interface ChatLogEntry {
@@ -404,7 +404,7 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
     sounds.playClick();
     const isWon = winner === 'player';
     const rewards = calculateWhoAmIRewards(playerAttempts, isWon);
-    onFinish(score, { xpEarned: rewards.xp, coinsEarned: rewards.coins });
+    onFinish(score, { xpEarned: rewards.xp, coinsEarned: rewards.coins }, isWon);
   };
 
   // -------------------------------------------------------------
