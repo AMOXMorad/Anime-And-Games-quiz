@@ -1,11 +1,6 @@
 import { World, WorldType, Difficulty, TriviaQuestion, TrueFalseQuestion, Character } from '../../types';
-import { narutoWorld } from './naruto';
-import { rezeroWorld } from './rezero';
 
-export const BUILT_IN_WORLDS: World[] = [
-  narutoWorld,
-  rezeroWorld,
-];
+export const BUILT_IN_WORLDS: World[] = [];
 
 // Helper to get custom worlds created by admin in localStorage
 export function getCustomWorlds(): World[] {
