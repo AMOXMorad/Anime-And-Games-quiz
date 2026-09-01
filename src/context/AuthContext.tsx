@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, StoreItem, PromoCode } from '../types';
-import { generateUserTag } from '../lib/supabase';
+import { generateUserTag, supabase } from '../lib/supabase';
 import { calculateLevel } from '../lib/ranks';
 import { sounds } from '../lib/sound';
+import { realtimeService } from '../lib/realtimeService';
 import confetti from 'canvas-confetti';
 
 interface AuthContextType {
@@ -133,6 +134,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveSession = (p: Profile, inv: string[]) => {
     localStorage.setItem('ag_utopia_session', JSON.stringify({ profile: p, inventory: inv }));
     
+    // 1. Broadcast live profile update
+    realtimeService.broadcast('profile_updated', p);
+
+    // 2. Persist to Supabase Database if online
+    try {
+      supabase.from('profiles').upsert([{
+        id: p.id,
+        username: p.username,
+        tag: p.tag,
+        bio: p.bio || '',
+        is_guest: p.is_guest,
+        role: p.role,
+        is_banned: p.is_banned,
+        coins: p.coins,
+        xp: p.xp,
+        level: p.level,
+        avatar_url: p.avatar_url || '',
+        active_avatar_id: p.active_avatar_id,
+        active_frame_id: p.active_frame_id,
+        active_tag_id: p.active_tag_id,
+        active_title_id: p.active_title_id,
+        showcase_titles: p.showcase_titles,
+        showcase_tags: p.showcase_tags,
+        showcase_frames: p.showcase_frames,
+        showcase_avatars: p.showcase_avatars || [],
+        inventory: inv,
+        redeemed_codes: p.redeemed_codes || [],
+        stats: p.stats,
+        updated_at: new Date().toISOString()
+      }]).then(({ error }) => {
+        if (error) console.warn('Supabase profile upsert fallback to local:', error.message);
+      });
+    } catch (e) {}
+
     // Automatically keep registered users database in sync
     try {
       const saved = localStorage.getItem('ag_utopia_registered_users');

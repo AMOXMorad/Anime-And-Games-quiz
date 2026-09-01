@@ -42,11 +42,13 @@ import {
   X,
   Image as ImageIcon,
   Globe,
-  Megaphone
+  Megaphone,
+  Radio
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { WorldBuilderPanel } from './WorldBuilderPanel';
 import { NotificationBroadcaster } from './NotificationBroadcaster';
+import { RealtimeDashboardPanel } from './RealtimeDashboardPanel';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -67,7 +69,7 @@ export const AdminPanel: React.FC = () => {
   } = useSocial();
   const { lang, t } = useI18n();
 
-  const [activeTab, setActiveTab] = useState<'world_builder' | 'notifications' | 'create_item' | 'promo_codes' | 'store_manager' | 'gifts' | 'users'>('world_builder');
+  const [activeTab, setActiveTab] = useState<'world_builder' | 'notifications' | 'realtime' | 'create_item' | 'promo_codes' | 'store_manager' | 'gifts' | 'users'>('world_builder');
   const [storeItems, setStoreItems] = useState<StoreItem[]>(() => getActiveStoreItems());
 
   // User Profile & Inventory Inspector Modal State
@@ -719,6 +721,18 @@ export const AdminPanel: React.FC = () => {
         </button>
 
         <button
+          onClick={() => { setActiveTab('realtime'); sounds.playClick(); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === 'realtime'
+              ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-lg ring-2 ring-emerald-400'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+          <span>⚡ اتصال الريل تايم (Supabase Cloud)</span>
+        </button>
+
+        <button
           onClick={() => { setActiveTab('create_item'); sounds.playClick(); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
             activeTab === 'create_item'
@@ -791,6 +805,13 @@ export const AdminPanel: React.FC = () => {
       {/* ============================================================== */}
       {activeTab === 'notifications' && (
         <NotificationBroadcaster />
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 0.3: REALTIME SUPABASE CLOUD & WEBSOCKETS HUB               */}
+      {/* ============================================================== */}
+      {activeTab === 'realtime' && (
+        <RealtimeDashboardPanel />
       )}
 
       {/* ============================================================== */}

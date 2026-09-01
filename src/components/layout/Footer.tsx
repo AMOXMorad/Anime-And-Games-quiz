@@ -55,9 +55,9 @@ export const Footer: React.FC<FooterProps> = ({ openReportModal, openSuggestions
             <span>{t('reportBug')}</span>
           </button>
 
-          <div className={`flex items-center gap-1 ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
-            <Shield className="w-3.5 h-3.5 text-cyan-500" />
-            <span>100% Realtime Cloud</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Supabase Realtime Cloud (Live Active)</span>
           </div>
         </div>
 

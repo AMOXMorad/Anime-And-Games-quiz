@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, Friendship, ChatMessage, UserNotification, Suggestion, Report, StoreItem } from '../types';
 import { useAuth } from './AuthContext';
 import { sounds } from '../lib/sound';
+import { realtimeService } from '../lib/realtimeService';
+import { supabase } from '../lib/supabase';
 import confetti from 'canvas-confetti';
 
 interface SocialContextType {
@@ -147,6 +149,45 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Direct Chat
   const [activeChatFriend, setActiveChatFriend] = useState<Friendship | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  // Initialize Realtime Service and Listen to Live Streams
+  useEffect(() => {
+    realtimeService.init();
+
+    const handleIncomingNotif = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const payload = customEvent.detail;
+      const record = payload?.new || payload;
+      if (record && record.title_ar) {
+        setNotifications(prev => {
+          if (prev.some(n => n.id === record.id)) return prev;
+          return [record, ...prev];
+        });
+        sounds.playClaim();
+      }
+    };
+
+    const handleIncomingChat = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const payload = customEvent.detail;
+      const msg: ChatMessage = payload?.new || payload;
+      if (msg && msg.content) {
+        setChatMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        sounds.playTimerTick();
+      }
+    };
+
+    window.addEventListener('ag_realtime_notification', handleIncomingNotif);
+    window.addEventListener('ag_realtime_chat', handleIncomingChat);
+
+    return () => {
+      window.removeEventListener('ag_realtime_notification', handleIncomingNotif);
+      window.removeEventListener('ag_realtime_chat', handleIncomingChat);
+    };
+  }, []);
 
   const openChat = (friend: Friendship) => {
     setActiveChatFriend(friend);
@@ -344,6 +385,28 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     setNotifications(prev => [newNotif, ...prev]);
+
+    // 1. Broadcast instantly to all live connected players
+    realtimeService.broadcast('notification', newNotif);
+
+    // 2. Persist to Supabase Database if online
+    try {
+      supabase.from('notifications').insert([{
+        id: newNotif.id,
+        user_id: newNotif.user_id,
+        sender_admin_id: newNotif.sender_admin_id,
+        title_ar: newNotif.title_ar,
+        title_en: newNotif.title_en,
+        message_ar: newNotif.message_ar,
+        message_en: newNotif.message_en,
+        gift_coins: newNotif.gift_coins,
+        gift_item_id: newNotif.gift_item_id,
+        is_claimed: false,
+        is_read: false
+      }]).then(({ error }) => {
+        if (error) console.warn('Supabase notification insert fallback to local:', error.message);
+      });
+    } catch (e) {}
 
     try {
       const customNotifs: UserNotification[] = JSON.parse(localStorage.getItem('ag_utopia_custom_notifications') || '[]');
