@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Profile, Friendship, ChatMessage, UserNotification, Suggestion, Report, StoreItem } from '../types';
+import { Profile, Friendship, ChatMessage, UserNotification, Suggestion, SuggestionReaction, Report, StoreItem } from '../types';
 import { useAuth } from './AuthContext';
 import { sounds } from '../lib/sound';
 import { realtimeService } from '../lib/realtimeService';
@@ -20,19 +20,62 @@ interface SocialContextType {
   sendFriendRequest: (tagOrName: string) => { success: boolean; message: string };
   respondFriendRequest: (friendshipId: string, accept: boolean) => void;
   claimNotificationGift: (notificationId: string) => void;
-  submitSuggestion: (category: 'world' | 'mode' | 'shop' | 'feature', title: string, details: string) => void;
+  submitSuggestion: (category: 'world' | 'mode' | 'shop' | 'feature', title: string, details: string) => { success: boolean; message: string };
   upvoteSuggestion: (id: string) => void;
-  submitReport: (type: 'player_report' | 'bug_report' | 'question_error', title: string, details: string, reportedUserId?: string) => void;
+  reactToSuggestion: (id: string, reaction: SuggestionReaction) => void;
+  submitReport: (type: 'player_report' | 'bug_report' | 'question_error', title: string, details: string, reportedUserId?: string) => { success: boolean; message: string };
   // Admin Methods
   adminSendGift: (userId: string, coins: number, title_ar: string, title_en: string, msg_ar: string, msg_en: string, item?: StoreItem) => void;
   adminBroadcastNotification: (title_ar: string, title_en: string, msg_ar: string, msg_en: string, coins?: number, item?: StoreItem, targetUserId?: string) => void;
   adminDeleteNotification: (notificationId: string) => void;
   adminBanUser: (userId: string, reason: string) => void;
-  adminResolveReport: (reportId: string) => void;
-  adminUpdateSuggestionStatus: (id: string, status: 'under_review' | 'planned' | 'implemented' | 'declined') => void;
+  adminResolveReport: (reportId: string, adminNote?: string, rewardCoins?: number) => void;
+  adminUpdateReportStatus: (reportId: string, status: 'open' | 'investigating' | 'resolved' | 'dismissed', adminNote?: string, rewardCoins?: number) => void;
+  adminDeleteReport: (reportId: string) => void;
+  adminUpdateSuggestionStatus: (id: string, status: 'under_review' | 'approved' | 'in_progress' | 'implemented' | 'declined', adminResponse?: string, isPinned?: boolean) => void;
+  adminDeleteSuggestion: (id: string) => void;
 }
 
 const SocialContext = createContext<SocialContextType | null>(null);
+
+const DEFAULT_SUGGESTIONS: Suggestion[] = [
+  {
+    id: 'sug_1',
+    user_id: 'user_1',
+    category: 'world',
+    title: 'إضافة عالم Attack on Titan (هجوم العمالقة)',
+    details: 'نطلب إضافة عالم إيرين وليفاي والعمالقة التسعة مع أسئلة وتريفيا وتحدي من أنا ممتع.',
+    upvotes: 42,
+    reactions: { heart: 28, fire: 35, like: 19, rocket: 14 },
+    status: 'approved',
+    admin_response: '🌟 فكرة أسطورية! جاري تجهيز شيت الإكسيل الخاص بالعالم وإدراج أسئلته وشخصياته قريباً.',
+    is_pinned: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'sug_2',
+    user_id: 'user_2',
+    category: 'world',
+    title: 'إضافة عالم الألعاب: Elden Ring & Dark Souls',
+    details: 'عالم السولز والزعماء الأسطوريين مثل مالينيا ورادان وسولز الجيمنج.',
+    upvotes: 31,
+    reactions: { fire: 22, rocket: 18, idea: 15 },
+    status: 'in_progress',
+    admin_response: '🛠️ قيد التطوير والتجهيز في استوديو العوالم.',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'sug_3',
+    user_id: 'user_3',
+    category: 'mode',
+    title: 'مود بطولة خروج المغلوب لـ 8 لاعبين (Tournament)',
+    details: 'نظام بطولة بنظام الشجرة وتصفيات بين 8 متنافسين بجوائز ضخمة.',
+    upvotes: 24,
+    reactions: { fire: 19, like: 12, idea: 8 },
+    status: 'under_review',
+    created_at: new Date().toISOString()
+  }
+];
 
 export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { profile, updateCoins } = useAuth();
@@ -93,7 +136,7 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   ]);
 
-  // Notifications (Pure dynamic from admin / custom notifications)
+  // Notifications
   const [notifications, setNotifications] = useState<UserNotification[]>(() => {
     try {
       const claimedIds: string[] = JSON.parse(localStorage.getItem('ag_utopia_claimed_notifs') || '[]');
@@ -109,42 +152,25 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  // Community Suggestions
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([
-    {
-      id: 'sug_1',
-      user_id: 'user_1',
-      category: 'world',
-      title: 'إضافة عالم Attack on Titan (هجوم العمالقة)',
-      details: 'نطلب إضافة عالم إيرين وليفاي والعمالقة التسعة مع أسئلة وتريفيا ممتعة.',
-      upvotes: 42,
-      status: 'planned',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sug_2',
-      user_id: 'user_2',
-      category: 'world',
-      title: 'إضافة عالم الألعاب: Elden Ring & Dark Souls',
-      details: 'عالم السولز والزعماء الأسطوريين مثل مالينيا ورادان.',
-      upvotes: 28,
-      status: 'under_review',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sug_3',
-      user_id: 'user_3',
-      category: 'mode',
-      title: 'مود بطولة خروج المغلوب لـ 8 لاعبين',
-      details: 'نظام Tournament بنظام الشجرة وتصفيات بين 8 متنافسين.',
-      upvotes: 19,
-      status: 'under_review',
-      created_at: new Date().toISOString()
+  // Community Suggestions (Loaded from DB & persistent)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>(() => {
+    try {
+      const saved = localStorage.getItem('ag_utopia_community_suggestions');
+      return saved ? JSON.parse(saved) : DEFAULT_SUGGESTIONS;
+    } catch (e) {
+      return DEFAULT_SUGGESTIONS;
     }
-  ]);
+  });
 
-  // Reports
-  const [reports, setReports] = useState<Report[]>([]);
+  // Reports Hub (Loaded from DB & persistent)
+  const [reports, setReports] = useState<Report[]>(() => {
+    try {
+      const saved = localStorage.getItem('ag_utopia_player_reports');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   // Direct Chat
   const [activeChatFriend, setActiveChatFriend] = useState<Friendship | null>(null);
@@ -180,12 +206,48 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
+    const handleIncomingSuggestion = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const sug: Suggestion = customEvent.detail;
+      if (sug && sug.id) {
+        setSuggestions(prev => {
+          const idx = prev.findIndex(s => s.id === sug.id);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], ...sug };
+            return updated;
+          }
+          return [sug, ...prev];
+        });
+      }
+    };
+
+    const handleIncomingReport = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const rep: Report = customEvent.detail;
+      if (rep && rep.id) {
+        setReports(prev => {
+          const idx = prev.findIndex(r => r.id === rep.id);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], ...rep };
+            return updated;
+          }
+          return [rep, ...prev];
+        });
+      }
+    };
+
     window.addEventListener('ag_realtime_notification', handleIncomingNotif);
     window.addEventListener('ag_realtime_chat', handleIncomingChat);
+    window.addEventListener('ag_realtime_suggestion', handleIncomingSuggestion);
+    window.addEventListener('ag_realtime_report', handleIncomingReport);
 
     return () => {
       window.removeEventListener('ag_realtime_notification', handleIncomingNotif);
       window.removeEventListener('ag_realtime_chat', handleIncomingChat);
+      window.removeEventListener('ag_realtime_suggestion', handleIncomingSuggestion);
+      window.removeEventListener('ag_realtime_report', handleIncomingReport);
     };
   }, []);
 
@@ -246,7 +308,6 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateCoins(notif.gift_coins);
     }
 
-    // Persist claim in localStorage
     try {
       const claimedIds: string[] = JSON.parse(localStorage.getItem('ag_utopia_claimed_notifs') || '[]');
       if (!claimedIds.includes(notificationId)) {
@@ -268,57 +329,253 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  const submitSuggestion = (category: 'world' | 'mode' | 'shop' | 'feature', title: string, details: string) => {
+  const submitSuggestion = (
+    category: 'world' | 'mode' | 'shop' | 'feature', 
+    title: string, 
+    details: string
+  ): { success: boolean; message: string } => {
+    if (!title.trim() || !details.trim()) {
+      return { success: false, message: 'يرجى ملء عنوان وتفاصيل الاقتراح' };
+    }
+
     const newSug: Suggestion = {
       id: 'sug_' + Math.random().toString(36).substring(2, 9),
       user_id: profile?.id || 'anon',
       category,
-      title,
-      details,
+      title: title.trim(),
+      details: details.trim(),
       upvotes: 1,
+      reactions: { like: 1 },
+      user_reactions: profile ? { [profile.id]: 'like' } : {},
       status: 'under_review',
       created_at: new Date().toISOString(),
       user_profile: profile || undefined,
       has_voted: true
     };
-    setSuggestions(prev => [newSug, ...prev]);
+
+    setSuggestions(prev => {
+      const updated = [newSug, ...prev];
+      try {
+        localStorage.setItem('ag_utopia_community_suggestions', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    // Sync to Supabase
+    try {
+      supabase.from('suggestions').insert([{
+        id: newSug.id,
+        user_id: newSug.user_id,
+        category: newSug.category,
+        title: newSug.title,
+        details: newSug.details,
+        status: newSug.status,
+        upvotes: newSug.upvotes
+      }]).then();
+    } catch (e) {}
+
+    realtimeService.broadcast('suggestion', newSug);
     sounds.playVictory();
+    confetti({ particleCount: 70, spread: 60 });
+    return { success: true, message: '🎉 تم نشر فكرتك واقتراحك بنجاح في مجتمع يوتوبيا!' };
   };
 
   const upvoteSuggestion = (id: string) => {
-    setSuggestions(prev =>
-      prev.map(s => {
+    reactToSuggestion(id, 'like');
+  };
+
+  const reactToSuggestion = (id: string, reaction: SuggestionReaction) => {
+    const userKey = profile?.id || 'anon_guest';
+    setSuggestions(prev => {
+      const updated = prev.map(s => {
         if (s.id === id) {
-          const hasVoted = s.has_voted;
-          return {
+          const userReactions: Record<string, SuggestionReaction> = { ...(s.user_reactions || {}) };
+          const curReaction = userReactions[userKey];
+          const reactions: Record<string, number> = { ...(s.reactions || {}) };
+
+          if (curReaction === reaction) {
+            // Remove reaction
+            delete userReactions[userKey];
+            reactions[reaction] = Math.max(0, (reactions[reaction] || 1) - 1);
+          } else {
+            // Remove previous if exists
+            if (curReaction && reactions[curReaction]) {
+              reactions[curReaction] = Math.max(0, reactions[curReaction] - 1);
+            }
+            // Add new reaction
+            userReactions[userKey] = reaction;
+            reactions[reaction] = (reactions[reaction] || 0) + 1;
+          }
+
+          const totalUpvotes = Object.values(reactions).reduce((a, b) => a + (b || 0), 0);
+          const itemUpdated: Suggestion = {
             ...s,
-            upvotes: hasVoted ? s.upvotes - 1 : s.upvotes + 1,
-            has_voted: !hasVoted
+            reactions: reactions as any,
+            user_reactions: userReactions,
+            upvotes: Math.max(1, totalUpvotes),
+            has_voted: !!userReactions[userKey]
           };
+
+          realtimeService.broadcast('suggestion', itemUpdated);
+          return itemUpdated;
         }
         return s;
-      })
-    );
+      });
+
+      try {
+        localStorage.setItem('ag_utopia_community_suggestions', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     sounds.playClick();
   };
 
-  const submitReport = (type: 'player_report' | 'bug_report' | 'question_error', title: string, details: string, reportedUserId?: string) => {
+  const adminUpdateSuggestionStatus = (
+    id: string, 
+    status: 'under_review' | 'approved' | 'in_progress' | 'implemented' | 'declined',
+    adminResponse?: string,
+    isPinned?: boolean
+  ) => {
+    setSuggestions(prev => {
+      const updated = prev.map(s => {
+        if (s.id === id) {
+          const res: Suggestion = {
+            ...s,
+            status,
+            admin_response: adminResponse !== undefined ? adminResponse : s.admin_response,
+            is_pinned: isPinned !== undefined ? isPinned : s.is_pinned
+          };
+          realtimeService.broadcast('suggestion', res);
+          return res;
+        }
+        return s;
+      });
+
+      try {
+        localStorage.setItem('ag_utopia_community_suggestions', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    sounds.playVictory();
+  };
+
+  const adminDeleteSuggestion = (id: string) => {
+    setSuggestions(prev => {
+      const filtered = prev.filter(s => s.id !== id);
+      try {
+        localStorage.setItem('ag_utopia_community_suggestions', JSON.stringify(filtered));
+      } catch (e) {}
+      return filtered;
+    });
+    sounds.playWrong();
+  };
+
+  const submitReport = (
+    type: 'player_report' | 'bug_report' | 'question_error', 
+    title: string, 
+    details: string, 
+    reportedUserId?: string
+  ): { success: boolean; message: string } => {
+    if (!title.trim() || !details.trim()) {
+      return { success: false, message: 'يرجى كتابة عنوان وتفاصيل البلاغ' };
+    }
+
     const newRep: Report = {
       id: 'rep_' + Math.random().toString(36).substring(2, 9),
       reporter_id: profile?.id || 'anon',
       reported_user_id: reportedUserId,
       type,
-      title,
-      details,
+      title: title.trim(),
+      details: details.trim(),
       status: 'open',
       created_at: new Date().toISOString(),
       reporter_profile: profile || undefined
     };
-    setReports(prev => [newRep, ...prev]);
+
+    setReports(prev => {
+      const updated = [newRep, ...prev];
+      try {
+        localStorage.setItem('ag_utopia_player_reports', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    // Sync to Supabase
+    try {
+      supabase.from('reports').insert([{
+        id: newRep.id,
+        reporter_id: newRep.reporter_id,
+        reported_user_id: newRep.reported_user_id,
+        type: newRep.type,
+        title: newRep.title,
+        details: newRep.details,
+        status: newRep.status
+      }]).then();
+    } catch (e) {}
+
+    realtimeService.broadcast('report', newRep);
     sounds.playWrong();
+    return { success: true, message: '🛡️ تم إرسال البلاغ بنجاح إلى المشرف العام لمراجعته فوراً!' };
   };
 
-  // Admin Methods
+  const adminUpdateReportStatus = (
+    reportId: string, 
+    status: 'open' | 'investigating' | 'resolved' | 'dismissed',
+    adminNote?: string,
+    rewardCoins?: number
+  ) => {
+    setReports(prev => {
+      const updated = prev.map(r => {
+        if (r.id === reportId) {
+          const res: Report = {
+            ...r,
+            status,
+            admin_note: adminNote !== undefined ? adminNote : r.admin_note,
+            reward_coins: rewardCoins !== undefined ? rewardCoins : r.reward_coins
+          };
+
+          // If rewarding coins to reporter
+          if (rewardCoins && rewardCoins > 0 && r.reporter_id && r.reporter_id !== 'anon') {
+            adminSendGift(
+              r.reporter_id,
+              rewardCoins,
+              'مكافأة الإبلاغ عن خطأ 🎁',
+              'Bug Bounty Reward 🎁',
+              `شكراً لمساعدتك في تحسين المنصة والإبلاغ عن: [${r.title}]. تم منحك ${rewardCoins} كوينز!`,
+              `Thank you for reporting: [${r.title}]. You received ${rewardCoins} Coins!`
+            );
+          }
+
+          realtimeService.broadcast('report', res);
+          return res;
+        }
+        return r;
+      });
+
+      try {
+        localStorage.setItem('ag_utopia_player_reports', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    sounds.playClick();
+  };
+
+  const adminResolveReport = (reportId: string, adminNote?: string, rewardCoins?: number) => {
+    adminUpdateReportStatus(reportId, 'resolved', adminNote, rewardCoins);
+  };
+
+  const adminDeleteReport = (reportId: string) => {
+    setReports(prev => {
+      const filtered = prev.filter(r => r.id !== reportId);
+      try {
+        localStorage.setItem('ag_utopia_player_reports', JSON.stringify(filtered));
+      } catch (e) {}
+      return filtered;
+    });
+    sounds.playClick();
+  };
+
+  // Admin Broadcast
   const adminSendGift = (
     userId: string,
     coins: number,
@@ -346,7 +603,6 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setNotifications(prev => [newNotif, ...prev]);
 
-    // Persist custom notification in localStorage
     try {
       const customNotifs: UserNotification[] = JSON.parse(localStorage.getItem('ag_utopia_custom_notifications') || '[]');
       customNotifs.unshift(newNotif);
@@ -386,10 +642,8 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setNotifications(prev => [newNotif, ...prev]);
 
-    // 1. Broadcast instantly to all live connected players
     realtimeService.broadcast('notification', newNotif);
 
-    // 2. Persist to Supabase Database if online
     try {
       supabase.from('notifications').insert([{
         id: newNotif.id,
@@ -404,7 +658,7 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         is_claimed: false,
         is_read: false
       }]).then(({ error }) => {
-        if (error) console.warn('Supabase notification insert fallback to local:', error.message);
+        if (error) console.warn('Supabase notification insert fallback:', error.message);
       });
     } catch (e) {}
 
@@ -437,20 +691,6 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     alert(`تم حظر المستخدم ${userId} بنجاح! السبب: ${reason}`);
   };
 
-  const adminResolveReport = (reportId: string) => {
-    setReports(prev =>
-      prev.map(r => (r.id === reportId ? { ...r, status: 'resolved' } : r))
-    );
-    sounds.playClick();
-  };
-
-  const adminUpdateSuggestionStatus = (id: string, status: 'under_review' | 'planned' | 'implemented' | 'declined') => {
-    setSuggestions(prev =>
-      prev.map(s => (s.id === id ? { ...s, status } : s))
-    );
-    sounds.playClick();
-  };
-
   const unreadCount = notifications.filter(n => !n.is_claimed || !n.is_read).length;
 
   return (
@@ -471,13 +711,17 @@ export const SocialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         claimNotificationGift,
         submitSuggestion,
         upvoteSuggestion,
+        reactToSuggestion,
         submitReport,
         adminSendGift,
         adminBroadcastNotification,
         adminDeleteNotification,
         adminBanUser,
         adminResolveReport,
-        adminUpdateSuggestionStatus
+        adminUpdateReportStatus,
+        adminDeleteReport,
+        adminUpdateSuggestionStatus,
+        adminDeleteSuggestion
       }}
     >
       {children}

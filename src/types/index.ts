@@ -205,10 +205,14 @@ export interface Report {
   title: string;
   details: string;
   status: 'open' | 'investigating' | 'resolved' | 'dismissed';
+  admin_note?: string;
+  reward_coins?: number;
   created_at: string;
   reporter_profile?: Profile;
   reported_profile?: Profile;
 }
+
+export type SuggestionReaction = 'heart' | 'fire' | 'like' | 'idea' | 'rocket';
 
 export interface Suggestion {
   id: string;
@@ -217,7 +221,17 @@ export interface Suggestion {
   title: string;
   details: string;
   upvotes: number;
-  status: 'under_review' | 'planned' | 'implemented' | 'declined';
+  reactions?: {
+    heart?: number;
+    fire?: number;
+    like?: number;
+    idea?: number;
+    rocket?: number;
+  };
+  user_reactions?: Record<string, SuggestionReaction>;
+  status: 'under_review' | 'approved' | 'in_progress' | 'implemented' | 'declined';
+  admin_response?: string;
+  is_pinned?: boolean;
   created_at: string;
   user_profile?: Profile;
   has_voted?: boolean;

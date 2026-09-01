@@ -52,8 +52,8 @@ export const RealtimeDashboardPanel: React.FC = () => {
   const handleCopySql = () => {
     sounds.playClick();
     const sqlCode = `-- =========================================================
--- AG UTOPIA — COMPREHENSIVE SUPABASE REALTIME SQL SCHEMA
--- Run this in your Supabase SQL Editor to enable Realtime!
+-- AG UTOPIA — COMPREHENSIVE CLOUD REALTIME SQL SCHEMA
+-- Run this in your Cloud SQL Editor to enable Realtime!
 -- =========================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -246,10 +246,10 @@ END $$;`;
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
-                مركز إدارة وتشغيل الريل تايم في الداتا بيز (Database Realtime)
+                مركز إدارة وتشغيل الريل تايم في السيرفر (Database Realtime)
               </h2>
               <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                مزامنة فورية للنتائج، الإشعارات الحية، غرف المواجهات 1v1، وتحديث قائمة المتصدرين عبر WebSockets و Supabase Realtime Publication.
+                مزامنة فورية للنتائج، الإشعارات الحية، غرف المواجهات 1v1، وتحديث قائمة المتصدرين عبر شبكة WebSockets المباشرة وقنوات البث الحي السحابي.
               </p>
             </div>
           </div>

@@ -49,6 +49,7 @@ import confetti from 'canvas-confetti';
 import { WorldBuilderPanel } from './WorldBuilderPanel';
 import { NotificationBroadcaster } from './NotificationBroadcaster';
 import { RealtimeDashboardPanel } from './RealtimeDashboardPanel';
+import { ReportsManagementPanel } from './ReportsManagementPanel';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -70,7 +71,7 @@ export const AdminPanel: React.FC = () => {
   } = useSocial();
   const { lang, t } = useI18n();
 
-  const [activeTab, setActiveTab] = useState<'world_builder' | 'notifications' | 'realtime' | 'create_item' | 'promo_codes' | 'store_manager' | 'gifts' | 'users'>('world_builder');
+  const [activeTab, setActiveTab] = useState<'world_builder' | 'notifications' | 'reports' | 'realtime' | 'create_item' | 'promo_codes' | 'store_manager' | 'gifts' | 'users'>('world_builder');
   const [storeItems, setStoreItems] = useState<StoreItem[]>(() => getActiveStoreItems());
 
   // User Profile & Inventory Inspector Modal State
@@ -744,6 +745,23 @@ export const AdminPanel: React.FC = () => {
         </button>
 
         <button
+          onClick={() => { setActiveTab('reports'); sounds.playClick(); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === 'reports'
+              ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-lg ring-2 ring-rose-400'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Bug className="w-4 h-4 text-rose-400" />
+          <span>🛡️ بلاغات وشكاوى اللاعبين ({reports.length})</span>
+          {reports.filter(r => r.status === 'open' || r.status === 'investigating').length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-black animate-pulse">
+              {reports.filter(r => r.status === 'open' || r.status === 'investigating').length}
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={() => { setActiveTab('realtime'); sounds.playClick(); }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
             activeTab === 'realtime'
@@ -752,7 +770,7 @@ export const AdminPanel: React.FC = () => {
           }`}
         >
           <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-          <span>⚡ اتصال الريل تايم (Supabase Cloud)</span>
+          <span>⚡ مركز الاتصال المباشر والريل تايم (Live Engine)</span>
         </button>
 
         <button
@@ -831,7 +849,14 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {/* ============================================================== */}
-      {/* TAB 0.3: REALTIME SUPABASE CLOUD & WEBSOCKETS HUB               */}
+      {/* TAB 0.3: REPORTS & PLAYER COMPLAINTS HUB                       */}
+      {/* ============================================================== */}
+      {activeTab === 'reports' && (
+        <ReportsManagementPanel />
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 0.4: REALTIME LIVE ENGINE & WEBSOCKETS HUB                  */}
       {/* ============================================================== */}
       {activeTab === 'realtime' && (
         <RealtimeDashboardPanel />

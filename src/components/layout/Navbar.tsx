@@ -177,14 +177,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             type="button"
-            onClick={() => { openSuggestionsModal(); sounds.playClick(); }}
+            onClick={() => { setCurrentView('suggestions'); sounds.playClick(); }}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              isLight
+              currentView === 'suggestions'
+                ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white shadow-md ring-1 ring-white/20'
+                : isLight
                 ? 'text-slate-600 hover:text-slate-900 hover:bg-white font-bold'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60 font-bold'
             }`}
           >
-            <Lightbulb className="w-3.5 h-3.5" />
+            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
             <span>{t('community')}</span>
           </button>
 

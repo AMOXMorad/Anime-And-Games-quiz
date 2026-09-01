@@ -169,11 +169,11 @@ export const SuggestionsModal: React.FC<SuggestionsModalProps> = ({ isOpen, onCl
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                     s.status === 'implemented'
                       ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                      : s.status === 'planned'
+                      : s.status === 'approved' || s.status === 'in_progress'
                       ? 'bg-cyan-950 text-cyan-400 border border-cyan-800'
                       : 'bg-amber-950 text-amber-400 border border-amber-800'
                   }`}>
-                    {s.status === 'implemented' ? '✅ تم التطبيق' : s.status === 'planned' ? '🚀 مخطط للتنفيذ' : '🟡 قيد المراجعة'}
+                    {s.status === 'implemented' ? '✅ تم التطبيق' : s.status === 'approved' ? '🌟 تمت الموافقة' : s.status === 'in_progress' ? '🛠️ قيد التطوير' : '🟡 قيد المراجعة'}
                   </span>
                 </div>
 

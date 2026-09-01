@@ -29,6 +29,7 @@ import { WorldCard } from './components/worlds/WorldCard';
 import { StoreView } from './components/store/StoreView';
 import { LeaderboardView } from './components/leaderboard/LeaderboardView';
 import { ProfileView } from './components/profile/ProfileView';
+import { SuggestionsView } from './components/community/SuggestionsView';
 import { AdminPanel } from './components/admin/AdminPanel';
 
 // Game Modes
@@ -161,11 +162,14 @@ const MainAppContent: React.FC = () => {
       {/* Top Navigation */}
       <Navbar
         currentView={currentView}
-        setCurrentView={setCurrentView}
+        setCurrentView={(view) => {
+          if (isPlaying) exitGame();
+          setCurrentView(view);
+        }}
         openAuthModal={() => setAuthModalOpen(true)}
         openNotifications={() => setNotifDrawerOpen(true)}
         openFriendsModal={() => setFriendsModalOpen(true)}
-        openSuggestionsModal={() => setSuggestionsModalOpen(true)}
+        openSuggestionsModal={() => setCurrentView('suggestions')}
       />
 
       {/* Main Container */}
@@ -222,6 +226,9 @@ const MainAppContent: React.FC = () => {
 
             {/* PROFILE VIEW */}
             {currentView === 'profile' && <ProfileView />}
+
+            {/* SUGGESTIONS VIEW */}
+            {currentView === 'suggestions' && <SuggestionsView />}
 
             {/* ADMIN PANEL */}
             {currentView === 'admin' && profile?.role === 'admin' && <AdminPanel />}
@@ -470,7 +477,7 @@ const MainAppContent: React.FC = () => {
       {/* Footer */}
       <Footer
         openReportModal={() => setReportModalOpen(true)}
-        openSuggestionsModal={() => setSuggestionsModalOpen(true)}
+        openSuggestionsModal={() => setCurrentView('suggestions')}
       />
 
     </div>
