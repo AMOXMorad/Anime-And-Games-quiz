@@ -55,6 +55,8 @@ export const AdminPanel: React.FC = () => {
     profile, 
     updateCoins, 
     deleteUserFromDatabase, 
+    adminBanUser,
+    adminModifyUser,
     adminRemoveItemFromUser, 
     adminAddItemToUser, 
     adminGetUserInventory 
@@ -63,7 +65,6 @@ export const AdminPanel: React.FC = () => {
     reports, 
     suggestions, 
     adminSendGift, 
-    adminBanUser, 
     adminResolveReport, 
     adminUpdateSuggestionStatus 
   } = useSocial();
@@ -97,6 +98,18 @@ export const AdminPanel: React.FC = () => {
       return [];
     }
   });
+
+  // Keep users list live updated across tabs & database operations
+  useEffect(() => {
+    const refreshUsers = () => {
+      try {
+        const saved = localStorage.getItem('ag_utopia_registered_users');
+        if (saved) setUsersList(JSON.parse(saved));
+      } catch (e) {}
+    };
+    window.addEventListener('ag_utopia_users_updated', refreshUsers);
+    return () => window.removeEventListener('ag_utopia_users_updated', refreshUsers);
+  }, []);
 
   // In-Browser Item Creator Form State
   const [newItemType, setNewItemType] = useState<'avatar' | 'frame' | 'tag' | 'title'>('avatar');
@@ -520,21 +533,30 @@ export const AdminPanel: React.FC = () => {
 
   // Toggle user ban
   const handleToggleBan = (userId: string) => {
+    const target = usersList.find(u => u.id === userId);
+    if (!target) return;
+    const newBanState = !target.is_banned;
+    const res = adminBanUser(userId, newBanState, newBanState ? 'حظر إداري مباشر من لوحة التحكم' : '');
     setUsersList(prev =>
-      prev.map(u => (u.id === userId ? { ...u, is_banned: !u.is_banned } : u))
+      prev.map(u => (u.id === userId ? { ...u, is_banned: newBanState } : u))
     );
-    sounds.playClick();
+    if (inspectingUser?.id === userId) {
+      setInspectingUser(prev => prev ? { ...prev, is_banned: newBanState } : null);
+    }
   };
 
   // Add Coins to User in DB
   const handleAddCoinsToUser = (userId: string, amount: number) => {
-    setUsersList(prev => {
-      const updated = prev.map(u => (u.id === userId ? { ...u, coins: u.coins + amount } : u));
-      try {
-        localStorage.setItem('ag_utopia_registered_users', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+    const target = usersList.find(u => u.id === userId);
+    if (!target) return;
+    const newCoins = Math.max(0, target.coins + amount);
+    adminModifyUser(userId, { coins: newCoins });
+    setUsersList(prev =>
+      prev.map(u => (u.id === userId ? { ...u, coins: newCoins } : u))
+    );
+    if (inspectingUser?.id === userId) {
+      setInspectingUser(prev => prev ? { ...prev, coins: newCoins } : null);
+    }
     sounds.playClaim();
   };
 
@@ -607,15 +629,16 @@ export const AdminPanel: React.FC = () => {
 
   // Modify user coins inside inspector
   const handleModifyUserCoins = (userId: string, delta: number) => {
-    setUsersList(prev => {
-      const updated = prev.map(u => (u.id === userId ? { ...u, coins: Math.max(0, u.coins + delta) } : u));
-      try {
-        localStorage.setItem('ag_utopia_registered_users', JSON.stringify(updated));
-      } catch (e) {}
-      const cur = updated.find(u => u.id === userId);
-      if (cur) setInspectingUser(cur);
-      return updated;
-    });
+    const target = usersList.find(u => u.id === userId);
+    if (!target) return;
+    const newCoins = Math.max(0, target.coins + delta);
+    adminModifyUser(userId, { coins: newCoins });
+    setUsersList(prev =>
+      prev.map(u => (u.id === userId ? { ...u, coins: newCoins } : u))
+    );
+    if (inspectingUser?.id === userId) {
+      setInspectingUser(prev => prev ? { ...prev, coins: newCoins } : null);
+    }
     sounds.playClaim();
   };
 

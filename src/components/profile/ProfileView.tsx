@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../lib/i18n';
 import { sounds } from '../../lib/sound';
+import { StoreItem } from '../../types';
 import { AvatarWithFrame } from '../ui/AvatarWithFrame';
 import { LevelBadge } from '../ui/LevelBadge';
 import { calculateLevel, getRankTier } from '../../lib/ranks';
