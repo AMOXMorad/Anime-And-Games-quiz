@@ -130,6 +130,12 @@ const MainAppContent: React.FC = () => {
     setVictoryModalOpen(true);
   };
 
+  const handleWhoAmIFinish = (score: number, customRewards?: { xpEarned: number; coinsEarned: number }, isWon?: boolean) => {
+    const finalWon = isWon !== undefined ? isWon : score > 0;
+    finishMatch(score, 0, customRewards, finalWon);
+    exitGame();
+  };
+
   const handleSuperGameFinish = (playerScore: number, oppScore: number, customRewards?: { xpEarned: number; coinsEarned: number }) => {
     const res = finishMatch(playerScore, oppScore, customRewards);
     setLastMatchResult({
@@ -188,7 +194,7 @@ const MainAppContent: React.FC = () => {
               <WhoAmIMode
                 world={selectedWorld}
                 difficulty={selectedDifficulty}
-                onFinish={handleSoloGameFinish}
+                onFinish={handleWhoAmIFinish}
               />
             )}
 
