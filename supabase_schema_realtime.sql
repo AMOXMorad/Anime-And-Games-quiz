@@ -1,6 +1,7 @@
 -- =========================================================
 -- AG UTOPIA — COMPREHENSIVE SUPABASE REALTIME SQL SCHEMA
--- Run this in your Supabase SQL Editor to enable Realtime!
+-- Run this COMPLETE script in your Supabase SQL Editor!
+-- It creates all tables and activates Realtime safely.
 -- =========================================================
 
 -- 1. Enable UUID Extension
@@ -177,35 +178,37 @@ BEGIN
 END $$;
 
 -- =========================================================
--- ENABLE SUPABASE REALTIME REPLICATION (CRITICAL STEP)
+-- SAFE REALTIME ACTIVATION & REPLICA IDENTITY
 -- =========================================================
-
--- Set REPLICA IDENTITY FULL for complete real-time payload streaming
-ALTER TABLE public.profiles REPLICA IDENTITY FULL;
-ALTER TABLE public.game_rooms REPLICA IDENTITY FULL;
-ALTER TABLE public.notifications REPLICA IDENTITY FULL;
-ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
-ALTER TABLE public.suggestions REPLICA IDENTITY FULL;
-ALTER TABLE public.reports REPLICA IDENTITY FULL;
-ALTER TABLE public.store_items REPLICA IDENTITY FULL;
-ALTER TABLE public.promo_codes REPLICA IDENTITY FULL;
-
--- Add tables to the supabase_realtime publication
 DO $$
 BEGIN
+    -- Ensure publication exists
     IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
         CREATE PUBLICATION supabase_realtime;
     END IF;
 END $$;
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.game_rooms;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.suggestions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.reports;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.store_items;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.promo_codes;
+-- Safely set Replica Identity and Add to Publication
+DO $$
+DECLARE
+    tbl text;
+    tables text[] := ARRAY['profiles', 'game_rooms', 'notifications', 'chat_messages', 'suggestions', 'reports', 'store_items', 'promo_codes'];
+BEGIN
+    FOREACH tbl IN ARRAY tables LOOP
+        -- Set replica identity to full for live data streaming
+        EXECUTE format('ALTER TABLE public.%I REPLICA IDENTITY FULL;', tbl);
+        
+        -- Add table to publication if not already present
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_publication_tables 
+            WHERE pubname = 'supabase_realtime' 
+            AND schemaname = 'public' 
+            AND tablename = tbl
+        ) THEN
+            EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I;', tbl);
+        END IF;
+    END LOOP;
+END $$;
 
 -- Confirmation Output
-SELECT '🎉 Supabase Realtime is now fully activated for AG Utopia tables!' as status;
+SELECT '🎉 Supabase Realtime is now 100% active for all AG Utopia tables!' as status;
