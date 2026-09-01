@@ -600,10 +600,10 @@ export const StoreView: React.FC = () => {
                 )}
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-wide">
-                {t('store_title')}
+                {t('storeTitle')}
               </h2>
               <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-md">
-                {t('store_desc')}
+                {t('storeSubtitle')}
               </p>
             </div>
           </div>
@@ -677,7 +677,7 @@ export const StoreView: React.FC = () => {
           }`}
         >
           <User className="w-4 h-4" />
-          <span>{t('tab_avatars')}</span>
+          <span>{t('avatars')}</span>
         </button>
 
         <button
@@ -689,7 +689,7 @@ export const StoreView: React.FC = () => {
           }`}
         >
           <Shield className="w-4 h-4" />
-          <span>{t('tab_frames')}</span>
+          <span>{t('frames')}</span>
         </button>
 
         <button
@@ -701,7 +701,7 @@ export const StoreView: React.FC = () => {
           }`}
         >
           <Crown className="w-4 h-4" />
-          <span>{t('tab_tags')}</span>
+          <span>{t('tags')}</span>
         </button>
 
         <button
@@ -713,7 +713,7 @@ export const StoreView: React.FC = () => {
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>{t('tab_titles')}</span>
+          <span>{t('titles')}</span>
         </button>
       </div>
 

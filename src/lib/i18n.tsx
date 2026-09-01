@@ -77,11 +77,17 @@ export const translations: Translations = {
 
   // Shop & Inventory
   storeTitle: { ar: 'متجر يوتوبيا للجوائز والتخصيص', en: 'Utopia Rewards & Customization Store' },
+  store_title: { ar: 'متجر يوتوبيا للجوائز والتخصيص', en: 'Utopia Rewards & Customization Store' },
   storeSubtitle: { ar: 'ميّز نفسك بصور بروفايل احترافية، إطارات متوهجة، تيجان ملكية، وألقاب أسطورية', en: 'Stand out with character avatars, glowing frames, royal tags, and legendary titles' },
+  store_desc: { ar: 'ميّز نفسك بصور بروفايل احترافية، إطارات متوهجة، تيجان ملكية، وألقاب أسطورية', en: 'Stand out with character avatars, glowing frames, royal tags, and legendary titles' },
   avatars: { ar: 'صور الأفاتار والبروفايل', en: 'Profile Avatars' },
+  tab_avatars: { ar: 'صور الأفاتار والبروفايل', en: 'Profile Avatars' },
   frames: { ar: 'إطارات البروفايل', en: 'Avatar Frames' },
+  tab_frames: { ar: 'إطارات البروفايل', en: 'Avatar Frames' },
   tags: { ar: 'تيجان وشارات الاسم', en: 'Name Tags & Badges' },
+  tab_tags: { ar: 'تيجان وشارات الاسم', en: 'Name Tags & Badges' },
   titles: { ar: 'الألقاب', en: 'Titles' },
+  tab_titles: { ar: 'الألقاب', en: 'Titles' },
   buyNow: { ar: 'شراء', en: 'Purchase' },
   owned: { ar: 'تمتلكه', en: 'Owned' },
   equipped: { ar: 'مُجهّز حالياً', en: 'Equipped' },
