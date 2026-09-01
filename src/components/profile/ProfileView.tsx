@@ -88,11 +88,20 @@ export const ProfileView: React.FC = () => {
     setTimeout(() => setCopiedTag(false), 2000);
   };
 
+  // Starter items owned by default by all users
+  const starterItemIds = new Set(['avatar_default', 'frame_default', 'tag_rookie', 'title_novice']);
+  const isItemOwned = (item: StoreItem) => {
+    if (profile.role === 'admin') return true;
+    if (inventory.includes(item.id)) return true;
+    if (starterItemIds.has(item.id)) return true;
+    return false;
+  };
+
   // Get owned items
-  const ownedAvatars = activeStoreItems.filter(i => i.type === 'avatar' && (inventory.includes(i.id) || i.price === 0 || profile.role === 'admin'));
-  const ownedTitles = activeStoreItems.filter(i => i.type === 'title' && (inventory.includes(i.id) || i.price === 0 || profile.role === 'admin'));
-  const ownedTags = activeStoreItems.filter(i => i.type === 'tag' && (inventory.includes(i.id) || i.price === 0 || profile.role === 'admin'));
-  const ownedFrames = activeStoreItems.filter(i => i.type === 'frame' && (inventory.includes(i.id) || i.price === 0 || profile.role === 'admin'));
+  const ownedAvatars = activeStoreItems.filter(i => i.type === 'avatar' && isItemOwned(i));
+  const ownedTitles = activeStoreItems.filter(i => i.type === 'title' && isItemOwned(i));
+  const ownedTags = activeStoreItems.filter(i => i.type === 'tag' && isItemOwned(i));
+  const ownedFrames = activeStoreItems.filter(i => i.type === 'frame' && isItemOwned(i));
 
   // Active equipped items metadata
   const activeTitleObj = activeStoreItems.find(i => i.id === profile.active_title_id);
