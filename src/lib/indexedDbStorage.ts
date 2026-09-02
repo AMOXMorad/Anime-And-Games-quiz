@@ -31,39 +31,88 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-function mapDbToWorld(row: any): World {
+/**
+ * Bulletproof World Normalizer ensuring consistent camelCase properties and non-null arrays
+ */
+export function normalizeWorld(row: any): World {
+  if (!row) return null as any;
+
+  let name = row.name;
+  if (typeof name === 'string') {
+    try { name = JSON.parse(name); } catch (_) { name = { ar: name, en: name }; }
+  }
+  if (!name || typeof name !== 'object') name = { ar: 'عالم مخصص', en: 'Custom Realm' };
+
+  let tagline = row.tagline;
+  if (typeof tagline === 'string') {
+    try { tagline = JSON.parse(tagline); } catch (_) { tagline = { ar: tagline, en: tagline }; }
+  }
+  if (!tagline || typeof tagline !== 'object') tagline = { ar: '', en: '' };
+
+  let description = row.description;
+  if (typeof description === 'string') {
+    try { description = JSON.parse(description); } catch (_) { description = { ar: description, en: description }; }
+  }
+  if (!description || typeof description !== 'object') description = { ar: '', en: '' };
+
+  let characters: any[] = [];
+  if (Array.isArray(row.characters)) {
+    characters = row.characters;
+  } else if (typeof row.characters === 'string') {
+    try { characters = JSON.parse(row.characters); } catch (_) { characters = []; }
+  }
+
+  let triviaQuestions: any[] = [];
+  if (Array.isArray(row.triviaQuestions)) {
+    triviaQuestions = row.triviaQuestions;
+  } else if (Array.isArray(row.trivia_questions)) {
+    triviaQuestions = row.trivia_questions;
+  } else if (typeof row.trivia_questions === 'string') {
+    try { triviaQuestions = JSON.parse(row.trivia_questions); } catch (_) { triviaQuestions = []; }
+  }
+
+  let trueFalseQuestions: any[] = [];
+  if (Array.isArray(row.trueFalseQuestions)) {
+    trueFalseQuestions = row.trueFalseQuestions;
+  } else if (Array.isArray(row.true_false_questions)) {
+    trueFalseQuestions = row.true_false_questions;
+  } else if (typeof row.true_false_questions === 'string') {
+    try { trueFalseQuestions = JSON.parse(row.true_false_questions); } catch (_) { trueFalseQuestions = []; }
+  }
+
   return {
     id: row.id,
-    name: typeof row.name === 'string' ? JSON.parse(row.name) : row.name,
+    name,
     category: row.category || 'anime',
-    tagline: typeof row.tagline === 'string' ? JSON.parse(row.tagline) : row.tagline,
-    description: typeof row.description === 'string' ? JSON.parse(row.description) : row.description,
+    tagline,
+    description,
     icon: row.icon || '⚔️',
-    banner: row.banner || 'https://cdn.myanimelist.net/images/anime/13/17405.jpg',
-    themeColor: row.theme_color || row.themeColor || '#06b6d4',
-    accentGlow: row.accent_glow || row.accentGlow || 'rgba(6,182,212,0.4)',
-    characters: Array.isArray(row.characters) ? row.characters : (typeof row.characters === 'string' ? JSON.parse(row.characters) : []),
-    triviaQuestions: Array.isArray(row.trivia_questions) ? row.trivia_questions : (row.triviaQuestions || []),
-    trueFalseQuestions: Array.isArray(row.true_false_questions) ? row.true_false_questions : (row.trueFalseQuestions || []),
+    banner: row.banner || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200',
+    themeColor: row.themeColor || row.theme_color || '#06b6d4',
+    accentGlow: row.accentGlow || row.accent_glow || 'rgba(6,182,212,0.4)',
+    characters,
+    triviaQuestions,
+    trueFalseQuestions,
     isCustom: true,
     created_at: row.created_at || new Date().toISOString()
   };
 }
 
 function mapWorldToDb(world: World): any {
+  const norm = normalizeWorld(world);
   return {
-    id: world.id,
-    name: world.name,
-    category: world.category,
-    tagline: world.tagline,
-    description: world.description,
-    icon: world.icon,
-    banner: world.banner,
-    theme_color: world.themeColor,
-    accent_glow: world.accentGlow,
-    characters: world.characters,
-    trivia_questions: world.triviaQuestions,
-    true_false_questions: world.trueFalseQuestions,
+    id: norm.id,
+    name: norm.name,
+    category: norm.category,
+    tagline: norm.tagline,
+    description: norm.description,
+    icon: norm.icon,
+    banner: norm.banner,
+    theme_color: norm.themeColor,
+    accent_glow: norm.accentGlow,
+    characters: norm.characters,
+    trivia_questions: norm.triviaQuestions,
+    true_false_questions: norm.trueFalseQuestions,
     is_custom: true,
     updated_at: new Date().toISOString()
   };
@@ -81,7 +130,8 @@ export async function initCustomWorldsStorage(): Promise<World[]> {
 
     await new Promise<void>((resolve) => {
       request.onsuccess = () => {
-        inMemoryCustomWorlds = request.result || [];
+        const raw = request.result || [];
+        inMemoryCustomWorlds = raw.map(normalizeWorld);
         isInitialized = true;
         resolve();
       };
@@ -126,14 +176,14 @@ export async function syncFromSupabaseCloud(): Promise<void> {
       return;
     }
 
-    if (Array.isArray(cloudWorlds) && cloudWorlds.length > 0) {
-      const parsedCloudWorlds = cloudWorlds.map(mapDbToWorld);
+    if (Array.isArray(cloudWorlds)) {
+      const parsedCloudWorlds = cloudWorlds.map(normalizeWorld);
 
       // Merge Cloud Worlds into Local Cache & IndexedDB
       const mergedMap = new Map<string, World>();
 
       // 1. Add current local worlds first
-      inMemoryCustomWorlds.forEach(w => mergedMap.set(w.id, w));
+      inMemoryCustomWorlds.forEach(w => mergedMap.set(w.id, normalizeWorld(w)));
 
       // 2. Override with Cloud Worlds
       parsedCloudWorlds.forEach(w => mergedMap.set(w.id, w));
@@ -184,7 +234,7 @@ function setupSupabaseRealtimeSync() {
         { event: '*', schema: 'public', table: 'custom_worlds' },
         async (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const updatedWorld = mapDbToWorld(payload.new);
+            const updatedWorld = normalizeWorld(payload.new);
             const filtered = inMemoryCustomWorlds.filter(w => w.id !== updatedWorld.id);
             inMemoryCustomWorlds = [updatedWorld, ...filtered];
 
@@ -220,7 +270,8 @@ function setupSupabaseRealtimeSync() {
 function getFallbackFromLocalStorage(): World[] {
   try {
     const saved = localStorage.getItem('ag_utopia_custom_worlds');
-    inMemoryCustomWorlds = saved ? JSON.parse(saved) : [];
+    const raw: any[] = saved ? JSON.parse(saved) : [];
+    inMemoryCustomWorlds = raw.map(normalizeWorld);
   } catch (_) {
     inMemoryCustomWorlds = [];
   }
@@ -235,24 +286,24 @@ export function getLoadedCustomWorlds(): World[] {
   if (!isInitialized) {
     getFallbackFromLocalStorage();
   }
-  return inMemoryCustomWorlds;
+  return inMemoryCustomWorlds.map(normalizeWorld);
 }
 
 /**
- * Save a custom world to Local IndexedDB & Cache + Cloud Database (Supabase) if available
+ * Save a custom world to Local IndexedDB & Cache + Cloud Database (Supabase)
  */
 export async function saveCustomWorldToDb(world: World): Promise<void> {
-  const worldToSave = {
+  const worldToSave = normalizeWorld({
     ...world,
     isCustom: true,
     created_at: world.created_at || new Date().toISOString()
-  };
+  });
 
   // 1. Update memory cache immediately
-  const filtered = inMemoryCustomWorlds.filter(w => w.id !== world.id);
+  const filtered = inMemoryCustomWorlds.filter(w => w.id !== worldToSave.id);
   inMemoryCustomWorlds = [worldToSave, ...filtered];
 
-  // 2. Save to local IndexedDB (always succeeds regardless of network)
+  // 2. Save to local IndexedDB (always succeeds)
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_WORLDS, 'readwrite');
@@ -315,6 +366,32 @@ export async function deleteCustomWorldFromDb(worldId: string): Promise<void> {
   }
 
   // 3. Trigger local UI update
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+  }
+}
+
+/**
+ * Completely clean all custom worlds from IndexedDB, LocalStorage, and Supabase Cloud
+ */
+export async function clearAllCustomWorldsStorage(): Promise<void> {
+  inMemoryCustomWorlds = [];
+  try {
+    localStorage.removeItem('ag_utopia_custom_worlds');
+  } catch (_) {}
+
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_WORLDS, 'readwrite');
+    tx.objectStore(STORE_WORLDS).clear();
+  } catch (_) {}
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase.from('custom_worlds').delete().neq('id', '___none___');
+    } catch (_) {}
+  }
+
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
   }

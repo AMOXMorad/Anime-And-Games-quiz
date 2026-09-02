@@ -103,7 +103,7 @@ export const WorldModal: React.FC<WorldModalProps> = ({
         
         {/* Banner Header - Dark Surface Guaranteed */}
         <div data-dark-surface="true" className="relative h-32 sm:h-36 w-full flex-shrink-0 bg-slate-950">
-          <img src={world.banner} alt={world.name[lang]} className="w-full h-full object-cover" />
+          <img src={world.banner || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200'} alt={world.name?.[lang] || 'World'} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
 
           {/* Close button */}
@@ -119,13 +119,13 @@ export const WorldModal: React.FC<WorldModalProps> = ({
           {/* World Title & Tagline */}
           <div className="absolute bottom-3 start-5 end-5">
             <div className="flex items-center gap-2.5 mb-1">
-              <span className="text-2xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{world.icon}</span>
+              <span className="text-2xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{world.icon || '⚔️'}</span>
               <h2 className="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] tracking-wide" style={{ color: '#ffffff' }}>
-                {world.name[lang]}
+                {world.name?.[lang] || world.name?.ar || world.name?.en || 'عالم'}
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] line-clamp-1 font-medium" style={{ color: '#e2e8f0' }}>
-              {world.tagline[lang]}
+              {world.tagline?.[lang] || world.tagline?.ar || world.tagline?.en || ''}
             </p>
           </div>
         </div>
@@ -134,16 +134,16 @@ export const WorldModal: React.FC<WorldModalProps> = ({
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
           
           {/* Character Roster Preview */}
-          {world.characters.length > 0 && (
+          {(world.characters || []).length > 0 && (
             <div>
               <h4 className={`text-xs font-bold mb-2 flex items-center gap-1.5 ${
                 isLight ? 'text-slate-600' : 'text-slate-400'
               }`}>
                 <Users className="w-3.5 h-3.5 text-cyan-500" />
-                <span>أبرز شخصيات العالم ({world.characters.length})</span>
+                <span>أبرز شخصيات العالم ({(world.characters || []).length})</span>
               </h4>
               <div className="flex gap-2.5 overflow-x-auto pb-1 pe-1">
-                {world.characters.map(char => (
+                {(world.characters || []).map(char => (
                   <div 
                     key={char.id} 
                     className={`flex-shrink-0 flex items-center gap-2 py-1.5 px-3 rounded-2xl border transition-all ${

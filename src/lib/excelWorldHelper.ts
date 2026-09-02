@@ -156,6 +156,34 @@ export function downloadWorldExcelTemplate(worldNamePlaceholder: string = 'Attac
 }
 
 /**
+ * Universal helper to extract a field value by matching any alias, case-insensitively and ignoring extra spaces/parentheses
+ */
+function getRowValue(row: any, ...aliases: string[]): string {
+  if (!row || typeof row !== 'object') return '';
+  const keys = Object.keys(row);
+
+  for (const alias of aliases) {
+    // 1. Direct exact match
+    if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== '') {
+      return String(row[alias]).trim();
+    }
+
+    // 2. Normalized alphanumeric match
+    const cleanAlias = alias.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
+    const matchingKey = keys.find(k => {
+      const cleanKey = k.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
+      return cleanKey === cleanAlias || cleanKey.includes(cleanAlias) || cleanAlias.includes(cleanKey);
+    });
+
+    if (matchingKey && row[matchingKey] !== undefined && row[matchingKey] !== null && String(row[matchingKey]).trim() !== '') {
+      return String(row[matchingKey]).trim();
+    }
+  }
+
+  return '';
+}
+
+/**
  * Parses uploaded Excel File buffer and extracts Characters, Trivia, True/False
  */
 export async function parseWorldExcelFile(file: File): Promise<ParsedExcelWorldData> {
@@ -163,94 +191,120 @@ export async function parseWorldExcelFile(file: File): Promise<ParsedExcelWorldD
   const wb = XLSX.read(arrayBuffer, { type: 'array' });
 
   const sheetNames = wb.SheetNames;
-  
-  // Find sheets or fallback to indices
-  const charSheetName = sheetNames.find(s => s.toLowerCase().includes('char')) || sheetNames[0];
-  const triviaSheetName = sheetNames.find(s => s.toLowerCase().includes('triv')) || sheetNames[1] || sheetNames[0];
-  const tfSheetName = sheetNames.find(s => s.toLowerCase().includes('true') || s.toLowerCase().includes('tf')) || sheetNames[2] || sheetNames[0];
+  if (!sheetNames || sheetNames.length === 0) {
+    throw new Error('ملف الإكسيل فارغ أو غير صالح.');
+  }
 
   const characters: Character[] = [];
   const triviaQuestions: TriviaQuestion[] = [];
   const trueFalseQuestions: TrueFalseQuestion[] = [];
 
-  // Parse Characters
+  // Identify sheets dynamically based on content and names
+  let charSheetName: string | undefined;
+  let triviaSheetName: string | undefined;
+  let tfSheetName: string | undefined;
+
+  for (const s of sheetNames) {
+    const sheet = wb.Sheets[s];
+    if (!sheet) continue;
+    const json: any[] = XLSX.utils.sheet_to_json(sheet);
+    if (json.length === 0) continue;
+
+    const firstRow = json[0];
+    const rowKeys = Object.keys(firstRow).join(' ').toLowerCase();
+
+    if (!charSheetName && (rowKeys.includes('name_ar') || rowKeys.includes('اسم') || rowKeys.includes('char') || s.toLowerCase().includes('char'))) {
+      charSheetName = s;
+    } else if (!triviaSheetName && (rowKeys.includes('option_1') || rowKeys.includes('question') || rowKeys.includes('سؤال') || s.toLowerCase().includes('triv'))) {
+      triviaSheetName = s;
+    } else if (!tfSheetName && (rowKeys.includes('statement') || rowKeys.includes('is_correct') || rowKeys.includes('صح') || s.toLowerCase().includes('true') || s.toLowerCase().includes('tf'))) {
+      tfSheetName = s;
+    }
+  }
+
+  // Fallbacks if not detected by content
+  if (!charSheetName) charSheetName = sheetNames[0];
+
+  // 1. Parse Characters
   if (charSheetName && wb.Sheets[charSheetName]) {
     const rawChars: any[] = XLSX.utils.sheet_to_json(wb.Sheets[charSheetName]);
     rawChars.forEach((row, i) => {
-      const nameAr = row['name_ar (اسم الشخصية)'] || row['name_ar'] || row['Name Ar'] || row['اسم الشخصية'] || `شخصية ${i + 1}`;
-      const nameEn = row['name_en (Character Name)'] || row['name_en'] || row['Name En'] || `Character ${i + 1}`;
+      const nameAr = getRowValue(row, 'name_ar (اسم الشخصية)', 'name_ar', 'اسم الشخصية', 'Name Ar', 'الاسم بالعربي', 'name', 'اسم') || `شخصية ${i + 1}`;
+      const nameEn = getRowValue(row, 'name_en (Character Name)', 'name_en', 'Character Name', 'Name En', 'الاسم بالانجليزي', 'en_name') || `Character ${i + 1}`;
       const id = (nameEn.toLowerCase().replace(/[^a-z0-9]/g, '_') || `char_${i + 1}`).slice(0, 30);
-      const gender = (row['gender (male/female/other)'] || row['gender'] || 'male').toString().toLowerCase().includes('fem') ? 'female' : 'male';
-      const roleAr = row['role_ar (الدور)'] || row['role_ar'] || 'شخصية أسطورية';
-      const roleEn = row['role_en (Role)'] || row['role_en'] || 'Legendary Character';
-      const powerAr = row['power_ar (نوع القوة)'] || row['power_ar'] || 'قوى قتالية خاصة';
-      const powerEn = row['power_en (Power)'] || row['power_en'] || 'Special Combat Powers';
-      const affAr = row['affiliation_ar (الانتماء)'] || row['affiliation_ar'] || 'عالم المنافسة';
-      const affEn = row['affiliation_en (Affiliation)'] || row['affiliation_en'] || 'Contest Universe';
-      const quoteAr = row['quote_ar (اقتباس مشهور)'] || row['quote_ar'] || 'أنا جاهز للمعركة!';
-      const quoteEn = row['quote_en (Famous Quote)'] || row['quote_en'] || 'I am ready for battle!';
-      const imgFilename = row['image_filename (اسم ملف الصورة)'] || row['image_filename'] || row['image'] || '';
+      const genderRaw = getRowValue(row, 'gender (male/female/other)', 'gender', 'الجنس', 'نوع الجنس').toLowerCase();
+      const gender = genderRaw.includes('fem') || genderRaw.includes('أنث') || genderRaw.includes('انث') ? 'female' : 'male';
+      const roleAr = getRowValue(row, 'role_ar (الدور)', 'role_ar', 'الدور', 'اللقب', 'Role Ar') || 'شخصية رئيسية';
+      const roleEn = getRowValue(row, 'role_en (Role)', 'role_en', 'Role En', 'Role') || 'Main Character';
+      const powerAr = getRowValue(row, 'power_ar (نوع القوة)', 'power_ar', 'نوع القوة', 'القدرة', 'القوة') || 'قوى قتالية مميزة';
+      const powerEn = getRowValue(row, 'power_en (Power)', 'power_en', 'Power En', 'Power', 'Ability') || 'Special Combat Powers';
+      const affAr = getRowValue(row, 'affiliation_ar (الانتماء)', 'affiliation_ar', 'الانتماء', 'الفصيل', 'العشيرة', 'القرية', 'المنظمة') || 'عالم القصة';
+      const affEn = getRowValue(row, 'affiliation_en (Affiliation)', 'affiliation_en', 'Affiliation En', 'Affiliation', 'Faction') || 'Story Universe';
+      const quoteAr = getRowValue(row, 'quote_ar (اقتباس مشهور)', 'quote_ar', 'اقتباس مشهور', 'المقولة', 'اقتباس', 'Quote Ar') || 'أنا جاهز للتحدي!';
+      const quoteEn = getRowValue(row, 'quote_en (Famous Quote)', 'quote_en', 'Famous Quote', 'Quote En', 'Quote') || 'I am ready for the battle!';
+      const imgFilename = getRowValue(row, 'image_filename (اسم ملف الصورة)', 'image_filename', 'اسم ملف الصورة', 'الصورة', 'image', 'avatar') || '';
 
       const cluesEasy = [
-        { ar: row['clue_easy_1_ar'] || 'تلميح سهل 1', en: row['clue_easy_1_en'] || 'Easy Clue 1' },
-        { ar: row['clue_easy_2_ar'] || 'تلميح سهل 2', en: row['clue_easy_2_en'] || 'Easy Clue 2' },
+        { ar: getRowValue(row, 'clue_easy_1_ar', 'تلميح سهل 1', 'easy_1_ar') || 'شخصية مشهورة في هذا العالم', en: getRowValue(row, 'clue_easy_1_en', 'Easy 1') || 'Famous character' },
+        { ar: getRowValue(row, 'clue_easy_2_ar', 'تلميح سهل 2', 'easy_2_ar'), en: getRowValue(row, 'clue_easy_2_en', 'Easy 2') },
       ].filter(c => c.ar && c.ar.trim());
 
       const cluesMed = [
-        { ar: row['clue_med_1_ar'] || 'تلميح متوسط 1', en: row['clue_med_1_en'] || 'Medium Clue 1' },
-        { ar: row['clue_med_2_ar'] || 'تلميح متوسط 2', en: row['clue_med_2_en'] || 'Medium Clue 2' },
+        { ar: getRowValue(row, 'clue_med_1_ar', 'تلميح متوسط 1', 'med_1_ar') || 'تمتلك قدرات وتاريخاً مميزاً', en: getRowValue(row, 'clue_med_1_en', 'Medium 1') || 'Distinctive abilities' },
+        { ar: getRowValue(row, 'clue_med_2_ar', 'تلميح متوسط 2', 'med_2_ar'), en: getRowValue(row, 'clue_med_2_en', 'Medium 2') },
       ].filter(c => c.ar && c.ar.trim());
 
       const cluesHard = [
-        { ar: row['clue_hard_1_ar'] || 'تلميح صعب 1', en: row['clue_hard_1_en'] || 'Hard Clue 1' },
-        { ar: row['clue_hard_2_ar'] || 'تلميح صعب 2', en: row['clue_hard_2_en'] || 'Hard Clue 2' },
+        { ar: getRowValue(row, 'clue_hard_1_ar', 'تلميح صعب 1', 'hard_1_ar') || 'شاركت في أحداث مفصلية تاريخية', en: getRowValue(row, 'clue_hard_1_en', 'Hard 1') || 'Part of crucial events' },
+        { ar: getRowValue(row, 'clue_hard_2_ar', 'تلميح صعب 2', 'hard_2_ar'), en: getRowValue(row, 'clue_hard_2_en', 'Hard 2') },
       ].filter(c => c.ar && c.ar.trim());
 
       characters.push({
         id,
         name: { ar: nameAr, en: nameEn },
-        avatar: imgFilename, // placeholder for file binder or direct URL
+        avatar: imgFilename,
         gender,
         role: { ar: roleAr, en: roleEn },
         powerType: { ar: powerAr, en: powerEn },
         affiliation: { ar: affAr, en: affEn },
         quote: { ar: quoteAr, en: quoteEn },
         clues: {
-          easy: cluesEasy.length > 0 ? cluesEasy : [{ ar: 'شخصية مشهورة في هذا العالم', en: 'Famous character' }],
-          medium: cluesMed.length > 0 ? cluesMed : [{ ar: 'تمتلك قدرات وتاريخاً مميزاً', en: 'Distinctive abilities' }],
-          hard: cluesHard.length > 0 ? cluesHard : [{ ar: 'شاركت في أحداث مفصلية تاريخية', en: 'Part of crucial events' }],
+          easy: cluesEasy.length > 0 ? cluesEasy : [{ ar: 'شخصية محورية في الأحداث', en: 'Central character' }],
+          medium: cluesMed.length > 0 ? cluesMed : [{ ar: 'خاضت معارك لا تُنسى', en: 'Fought memorable battles' }],
+          hard: cluesHard.length > 0 ? cluesHard : [{ ar: 'تاريخها مليء بالأسرار والغموض', en: 'Mysterious background' }],
         }
       });
     });
   }
 
-  // Parse Trivia Questions
+  // 2. Parse Trivia Questions
   if (triviaSheetName && wb.Sheets[triviaSheetName] && triviaSheetName !== charSheetName) {
     const rawTrivia: any[] = XLSX.utils.sheet_to_json(wb.Sheets[triviaSheetName]);
     rawTrivia.forEach((row, i) => {
-      const qAr = row['question_ar (نص السؤال)'] || row['question_ar'] || row['Question Ar'] || row['السؤال'] || `سؤال عام ${i + 1}`;
-      const qEn = row['question_en (Question)'] || row['question_en'] || row['Question En'] || `Question ${i + 1}`;
-      const diffStr = (row['difficulty (easy/medium/hard)'] || row['difficulty'] || 'medium').toString().toLowerCase();
+      const qAr = getRowValue(row, 'question_ar (نص السؤال)', 'question_ar', 'السؤال', 'نص السؤال', 'Question Ar');
+      const qEn = getRowValue(row, 'question_en (Question)', 'question_en', 'Question En', 'Question') || qAr;
+      if (!qAr) return;
+
+      const diffStr = getRowValue(row, 'difficulty (easy/medium/hard)', 'difficulty', 'الصعوبة', 'مستوى الصعوبة').toLowerCase();
       const difficulty = diffStr.includes('hard') || diffStr.includes('صعب') ? 'hard' : diffStr.includes('easy') || diffStr.includes('سهل') ? 'easy' : 'medium';
 
-      const opt1Ar = row['option_1_ar'] || row['opt_1_ar'] || 'الخيار الأول';
-      const opt1En = row['option_1_en'] || row['opt_1_en'] || 'Option 1';
-      const opt2Ar = row['option_2_ar'] || row['opt_2_ar'] || 'الخيار الثاني';
-      const opt2En = row['option_2_en'] || row['opt_2_en'] || 'Option 2';
-      const opt3Ar = row['option_3_ar'] || row['opt_3_ar'] || 'الخيار الثالث';
-      const opt3En = row['option_3_en'] || row['opt_3_en'] || 'Option 3';
-      const opt4Ar = row['option_4_ar'] || row['opt_4_ar'] || 'الخيار الرابع';
-      const opt4En = row['option_4_en'] || row['opt_4_en'] || 'Option 4';
+      const opt1Ar = getRowValue(row, 'option_1_ar', 'الخيار 1', 'opt_1_ar', 'الخيار الاول') || 'الخيار الأول';
+      const opt1En = getRowValue(row, 'option_1_en', 'Option 1', 'opt_1_en') || opt1Ar;
+      const opt2Ar = getRowValue(row, 'option_2_ar', 'الخيار 2', 'opt_2_ar', 'الخيار الثاني') || 'الخيار الثاني';
+      const opt2En = getRowValue(row, 'option_2_en', 'Option 2', 'opt_2_en') || opt2Ar;
+      const opt3Ar = getRowValue(row, 'option_3_ar', 'الخيار 3', 'opt_3_ar', 'الخيار الثالث') || 'الخيار الثالث';
+      const opt3En = getRowValue(row, 'option_3_en', 'Option 3', 'opt_3_en') || opt3Ar;
+      const opt4Ar = getRowValue(row, 'option_4_ar', 'الخيار 4', 'opt_4_ar', 'الخيار الرابع') || 'الخيار الرابع';
+      const opt4En = getRowValue(row, 'option_4_en', 'Option 4', 'opt_4_en') || opt4Ar;
 
-      let correctIndex = parseInt(row['correct_index (رقم الإجابة 1-4)'] || row['correct_index'] || row['correct'] || '1', 10);
+      let correctIndex = parseInt(getRowValue(row, 'correct_index (رقم الإجابة 1-4)', 'correct_index', 'الإجابة الصحيحة', 'الرقم الصحيح') || '1', 10);
       if (isNaN(correctIndex) || correctIndex < 1 || correctIndex > 4) {
         correctIndex = 1;
       }
-      // 0-indexed in code:
       const finalCorrectIdx = correctIndex - 1;
 
-      const expAr = row['explanation_ar'] || '';
-      const expEn = row['explanation_en'] || '';
+      const expAr = getRowValue(row, 'explanation_ar', 'التوضيح', 'الشرح', 'explanation');
+      const expEn = getRowValue(row, 'explanation_en', 'Explanation') || expAr;
 
       triviaQuestions.push({
         id: `triv_q_${i + 1}_${Math.random().toString(36).substring(2, 6)}`,
@@ -268,20 +322,22 @@ export async function parseWorldExcelFile(file: File): Promise<ParsedExcelWorldD
     });
   }
 
-  // Parse True/False Questions
+  // 3. Parse True/False Questions
   if (tfSheetName && wb.Sheets[tfSheetName] && tfSheetName !== charSheetName && tfSheetName !== triviaSheetName) {
     const rawTF: any[] = XLSX.utils.sheet_to_json(wb.Sheets[tfSheetName]);
     rawTF.forEach((row, i) => {
-      const stmtAr = row['statement_ar (نص الجملة)'] || row['statement_ar'] || row['Statement Ar'] || `جملة صح أو خطأ ${i + 1}`;
-      const stmtEn = row['statement_en (Statement)'] || row['statement_en'] || `Statement ${i + 1}`;
-      const diffStr = (row['difficulty (easy/medium/hard)'] || row['difficulty'] || 'easy').toString().toLowerCase();
+      const stmtAr = getRowValue(row, 'statement_ar (نص الجملة)', 'statement_ar', 'الجملة', 'نص الجملة', 'Statement Ar');
+      const stmtEn = getRowValue(row, 'statement_en (Statement)', 'statement_en', 'Statement En', 'Statement') || stmtAr;
+      if (!stmtAr) return;
+
+      const diffStr = getRowValue(row, 'difficulty (easy/medium/hard)', 'difficulty', 'الصعوبة').toLowerCase();
       const difficulty = diffStr.includes('hard') ? 'hard' : diffStr.includes('med') ? 'medium' : 'easy';
 
-      const isCorrectRaw = (row['is_correct (true/false أو صح/خطأ)'] || row['is_correct'] || 'true').toString().toLowerCase();
+      const isCorrectRaw = getRowValue(row, 'is_correct (true/false أو صح/خطأ)', 'is_correct', 'صح/خطأ', 'الصحة').toLowerCase();
       const isCorrect = isCorrectRaw.includes('true') || isCorrectRaw.includes('صح') || isCorrectRaw === '1';
 
-      const expAr = row['explanation_ar'] || '';
-      const expEn = row['explanation_en'] || '';
+      const expAr = getRowValue(row, 'explanation_ar', 'التوضيح', 'الشرح');
+      const expEn = getRowValue(row, 'explanation_en', 'Explanation') || expAr;
 
       trueFalseQuestions.push({
         id: `tf_q_${i + 1}_${Math.random().toString(36).substring(2, 6)}`,
@@ -293,7 +349,7 @@ export async function parseWorldExcelFile(file: File): Promise<ParsedExcelWorldD
     });
   }
 
-  // Auto-generate rich Trivia & True/False questions if none were explicitly provided in sheets
+  // 4. If no Trivia or True/False questions were found in sheets, synthesize automatically from characters
   if (triviaQuestions.length === 0 && characters.length >= 2) {
     const generated = generateQuestionsFromCharacters(characters);
     triviaQuestions.push(...generated.triviaQuestions);

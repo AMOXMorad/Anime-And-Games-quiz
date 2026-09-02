@@ -1,5 +1,5 @@
 import { World, WorldType, Difficulty, TriviaQuestion, TrueFalseQuestion, Character } from '../../types';
-import { getLoadedCustomWorlds, saveCustomWorldToDb, deleteCustomWorldFromDb } from '../../lib/indexedDbStorage';
+import { getLoadedCustomWorlds, saveCustomWorldToDb, deleteCustomWorldFromDb, clearAllCustomWorldsStorage } from '../../lib/indexedDbStorage';
 
 export const BUILT_IN_WORLDS: World[] = [];
 
@@ -23,6 +23,10 @@ export function saveCustomWorld(world: World): Promise<void> | void {
 
 export function deleteCustomWorld(worldId: string): Promise<void> | void {
   return deleteCustomWorldFromDb(worldId);
+}
+
+export function clearAllCustomWorlds(): Promise<void> {
+  return clearAllCustomWorldsStorage();
 }
 
 export const chaosWorld: World = {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../lib/i18n';
 import { sounds } from '../../lib/sound';
 import { World, WorldType, Character, TriviaQuestion, TrueFalseQuestion } from '../../types';
-import { saveCustomWorld, deleteCustomWorld, getCustomWorlds, BUILT_IN_WORLDS } from '../../data/worlds';
+import { saveCustomWorld, deleteCustomWorld, getCustomWorlds, clearAllCustomWorlds, BUILT_IN_WORLDS } from '../../data/worlds';
 import { downloadWorldExcelTemplate, parseWorldExcelFile, ParsedExcelWorldData } from '../../lib/excelWorldHelper';
 import { compressImage } from '../../lib/imageCompressor';
 import { isSupabaseConfigured, getSupabaseAnonKey, setCustomSupabaseKey } from '../../lib/supabase';
@@ -261,7 +261,7 @@ export const WorldBuilderPanel: React.FC = () => {
         en: descEn.trim() || `Conquer trivia and deduction duels across the legendary realm of ${nameEn}.`
       },
       icon: icon || '⚔️',
-      banner: bannerUrl || bannerPreview || 'https://cdn.myanimelist.net/images/anime/13/17405.jpg',
+      banner: bannerUrl || bannerPreview || (finalCharacters.length > 0 && finalCharacters[0].avatar.startsWith('data:') ? finalCharacters[0].avatar : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200'),
       themeColor: themeColor || '#06b6d4',
       accentGlow: `${themeColor}66`,
       characters: finalCharacters,
@@ -280,7 +280,7 @@ export const WorldBuilderPanel: React.FC = () => {
 
       setFeedback({
         success: true,
-        message: `🎉 تم بنجاح إنشاء ونشر وحفظ عالم "${nameAr}" (${finalWorldId})! أصبح متاحاً الآن في الرئيسية، أوضاع اللعب، ونظام الفوضى الكونية.`
+        message: `🎉 تم بنجاح إنشاء ونشر وحفظ عالم "${nameAr}" (${finalWorldId}) بمجموع ${finalCharacters.length} شخصية و ${finalTrivia.length + finalTF.length} سؤال! أصبح متاحاً الآن لكافة الأجهزة واللاعبين فوراً.`
       });
 
       // Reset Form
@@ -302,6 +302,18 @@ export const WorldBuilderPanel: React.FC = () => {
       await deleteCustomWorld(id);
       setActiveCustomWorlds(getCustomWorlds());
       sounds.playWrong();
+    }
+  };
+
+  const handleClearAllWorlds = async () => {
+    if (confirm('⚠️ تحذير: هل أنت متأكد من تصفير وتنظيف جميع العوالم المخصصة من السحابة والذاكرة المحلية بالكامل؟')) {
+      await clearAllCustomWorlds();
+      setActiveCustomWorlds(getCustomWorlds());
+      sounds.playWrong();
+      setFeedback({
+        success: true,
+        message: '🧹 تم تنظيف وتصفير قاعدة البيانات بنجاح! يمكنك الآن البدء برفع عوالمك الجديدة من الصفر.'
+      });
     }
   };
 
@@ -920,11 +932,20 @@ export const WorldBuilderPanel: React.FC = () => {
 
       {/* Active Custom Worlds List */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-base font-black text-white flex items-center gap-2">
             <Globe className="w-4 h-4 text-cyan-400" />
             <span>العوالم المخصصة المنشورة في المنصة ({activeCustomWorlds.length})</span>
           </h3>
+
+          <button
+            onClick={handleClearAllWorlds}
+            className="px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            title="حذف وتصفير جميع العوالم من السحابة والذاكرة"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>تصفير وتنظيف قاعدة البيانات</span>
+          </button>
         </div>
 
         {activeCustomWorlds.length === 0 ? (

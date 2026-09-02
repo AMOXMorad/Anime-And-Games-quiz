@@ -15,6 +15,15 @@ export const WorldCard: React.FC<WorldCardProps> = ({ world, onOpen }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
 
+  const charactersCount = (world.characters || []).length;
+  const triviaCount = (world.triviaQuestions || (world as any).trivia_questions || []).length;
+  const tfCount = (world.trueFalseQuestions || (world as any).true_false_questions || []).length;
+  const questionsCount = triviaCount + tfCount;
+
+  const nameText = typeof world.name === 'string' ? world.name : (world.name?.[lang] || world.name?.ar || world.name?.en || 'عالم');
+  const taglineText = typeof world.tagline === 'string' ? world.tagline : (world.tagline?.[lang] || world.tagline?.ar || world.tagline?.en || '');
+  const displayBanner = world.banner || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200';
+
   return (
     <div
       onClick={() => { onOpen(world.id); sounds.playClick(); }}
@@ -24,14 +33,14 @@ export const WorldCard: React.FC<WorldCardProps> = ({ world, onOpen }) => {
           : 'bg-slate-900/95 border-slate-800 hover:border-cyan-500/60 shadow-xl hover:shadow-[0_0_30px_rgba(6,182,212,0.25)]'
       }`}
       style={{
-        boxShadow: isLight ? undefined : `0 0 25px ${world.accentGlow}`
+        boxShadow: isLight ? undefined : `0 0 25px ${world.accentGlow || 'rgba(6,182,212,0.3)'}`
       }}
     >
       {/* Banner Image with gradient */}
       <div className="relative h-48 sm:h-56 w-full overflow-hidden bg-slate-950">
         <img
-          src={world.banner}
-          alt={world.name[lang]}
+          src={displayBanner}
+          alt={nameText}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
         />
         <div className={`absolute inset-0 bg-gradient-to-t ${
@@ -40,7 +49,7 @@ export const WorldCard: React.FC<WorldCardProps> = ({ world, onOpen }) => {
 
         {/* Category Pill */}
         <div className="absolute top-4 start-4 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-xs font-bold text-white shadow-sm">
-          <span>{world.icon}</span>
+          <span>{world.icon || '⚔️'}</span>
           <span className="capitalize">{world.category === 'anime' ? (lang === 'ar' ? 'أنمي' : 'Anime') : (lang === 'ar' ? 'ألعاب' : 'Games')}</span>
         </div>
       </div>
@@ -51,13 +60,13 @@ export const WorldCard: React.FC<WorldCardProps> = ({ world, onOpen }) => {
           <h3 className={`text-xl sm:text-2xl font-black mb-1.5 transition-colors flex items-center gap-2 ${
             isLight ? 'text-slate-900 group-hover:text-cyan-600' : 'text-white group-hover:text-cyan-400'
           }`}>
-            <span>{world.name[lang]}</span>
+            <span>{nameText}</span>
           </h3>
 
           <p className={`text-xs sm:text-sm line-clamp-2 leading-relaxed mb-4 ${
             isLight ? 'text-slate-600 font-medium' : 'text-slate-300'
           }`}>
-            {world.tagline[lang]}
+            {taglineText}
           </p>
         </div>
 
@@ -68,11 +77,11 @@ export const WorldCard: React.FC<WorldCardProps> = ({ world, onOpen }) => {
           }`}>
             <div className="flex items-center gap-1.5 font-semibold">
               <Users className="w-4 h-4 text-cyan-500" />
-              <span>{world.characters.length} شخصيات (من أنا)</span>
+              <span>{charactersCount} شخصيات (من أنا)</span>
             </div>
             <div className="flex items-center gap-1.5 font-semibold">
               <HelpCircle className="w-4 h-4 text-sky-500" />
-              <span>{world.triviaQuestions.length + world.trueFalseQuestions.length} أسئلة وتحديات</span>
+              <span>{questionsCount} أسئلة وتحديات</span>
             </div>
           </div>
 
