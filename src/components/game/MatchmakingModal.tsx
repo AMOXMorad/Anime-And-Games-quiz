@@ -39,6 +39,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
   const [inputCode, setInputCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
 
   // Auto-close modal when match starts
   useEffect(() => {
@@ -59,8 +60,6 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
   const handleCreateRoom = () => {
     createPrivateRoom(worldId, difficulty, mode);
   };
-
-  const [isJoining, setIsJoining] = useState(false);
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
