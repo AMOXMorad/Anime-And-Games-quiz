@@ -293,9 +293,147 @@ export async function parseWorldExcelFile(file: File): Promise<ParsedExcelWorldD
     });
   }
 
+  // Auto-generate rich Trivia & True/False questions if none were explicitly provided in sheets
+  if (triviaQuestions.length === 0 && characters.length >= 2) {
+    const generated = generateQuestionsFromCharacters(characters);
+    triviaQuestions.push(...generated.triviaQuestions);
+    if (trueFalseQuestions.length === 0) {
+      trueFalseQuestions.push(...generated.trueFalseQuestions);
+    }
+  }
+
   return {
     characters,
     triviaQuestions,
     trueFalseQuestions
   };
+}
+
+/**
+ * Automatically synthesizes comprehensive Trivia and True/False questions directly from Character entities
+ */
+export function generateQuestionsFromCharacters(characters: Character[]): {
+  triviaQuestions: TriviaQuestion[];
+  trueFalseQuestions: TrueFalseQuestion[];
+} {
+  if (characters.length === 0) return { triviaQuestions: [], trueFalseQuestions: [] };
+
+  const triviaQuestions: TriviaQuestion[] = [];
+  const trueFalseQuestions: TrueFalseQuestion[] = [];
+
+  characters.forEach((char, i) => {
+    const wrongChars = characters.filter(c => c.id !== char.id);
+
+    // 1. Guess by Quote
+    if (char.quote && char.quote.ar && char.quote.ar.length > 3 && wrongChars.length >= 3) {
+      const pool = [char, ...wrongChars.slice(0, 3)].sort(() => 0.5 - Math.random());
+      const correctIdx = pool.findIndex(p => p.id === char.id);
+      triviaQuestions.push({
+        id: `gen_triv_quote_${i + 1}_${char.id}`,
+        difficulty: 'medium',
+        question: {
+          ar: `من صاحب هذه المقولة الشهيرة: «${char.quote.ar}»؟`,
+          en: `Who famously said: "${char.quote.en || char.quote.ar}"?`
+        },
+        options: [
+          pool[0].name,
+          pool[1].name,
+          pool[2].name,
+          pool[3].name
+        ],
+        correctIndex: correctIdx >= 0 ? correctIdx : 0,
+        explanation: {
+          ar: `هذه العبارة هي الاقتباس الأيقوني لشخصية ${char.name.ar}.`,
+          en: `This iconic quote belongs to ${char.name.en}.`
+        }
+      });
+    }
+
+    // 2. Guess by Role / Title
+    if (char.role && char.role.ar && wrongChars.length >= 3) {
+      const pool = [char, ...wrongChars.slice(0, 3)].sort(() => 0.5 - Math.random());
+      const correctIdx = pool.findIndex(p => p.id === char.id);
+      triviaQuestions.push({
+        id: `gen_triv_role_${i + 1}_${char.id}`,
+        difficulty: 'easy',
+        question: {
+          ar: `ما هو الدور أو اللقب الأساسي لشخصية ${char.name.ar}؟`,
+          en: `What is the primary role or title of ${char.name.en}?`
+        },
+        options: [
+          pool[0].role,
+          pool[1].role,
+          pool[2].role,
+          pool[3].role
+        ],
+        correctIndex: correctIdx >= 0 ? correctIdx : 0,
+        explanation: {
+          ar: `دور ${char.name.ar} في القصة هو: ${char.role.ar}.`,
+          en: `The role of ${char.name.en} is: ${char.role.en}.`
+        }
+      });
+    }
+
+    // 3. Guess by Affiliation
+    if (char.affiliation && char.affiliation.ar && wrongChars.length >= 3) {
+      const pool = [char, ...wrongChars.slice(0, 3)].sort(() => 0.5 - Math.random());
+      const correctIdx = pool.findIndex(p => p.id === char.id);
+      triviaQuestions.push({
+        id: `gen_triv_aff_${i + 1}_${char.id}`,
+        difficulty: 'medium',
+        question: {
+          ar: `إلى أي منظمة أو فصيل تنتمي شخصية ${char.name.ar}؟`,
+          en: `Which faction or affiliation does ${char.name.en} belong to?`
+        },
+        options: [
+          pool[0].affiliation,
+          pool[1].affiliation,
+          pool[2].affiliation,
+          pool[3].affiliation
+        ],
+        correctIndex: correctIdx >= 0 ? correctIdx : 0,
+        explanation: {
+          ar: `تنتمي شخصية ${char.name.ar} إلى: ${char.affiliation.ar}.`,
+          en: `${char.name.en} is affiliated with: ${char.affiliation.en}.`
+        }
+      });
+    }
+
+    // 4. True / False: Affiliation (True)
+    if (char.affiliation && char.affiliation.ar) {
+      trueFalseQuestions.push({
+        id: `gen_tf_aff_true_${i + 1}_${char.id}`,
+        difficulty: 'easy',
+        statement: {
+          ar: `تنتمي شخصية ${char.name.ar} إلى ${char.affiliation.ar}.`,
+          en: `${char.name.en} belongs to ${char.affiliation.en}.`
+        },
+        isCorrect: true,
+        explanation: {
+          ar: `صحيح؛ ${char.name.ar} تنتمي إلى ${char.affiliation.ar}.`,
+          en: `Correct; ${char.name.en} belongs to ${char.affiliation.en}.`
+        }
+      });
+    }
+
+    // 5. True / False: Wrong Affiliation (False)
+    const otherCharWithDiffAff = characters.find(c => c.id !== char.id && c.affiliation.ar !== char.affiliation.ar);
+    if (otherCharWithDiffAff) {
+      trueFalseQuestions.push({
+        id: `gen_tf_aff_false_${i + 1}_${char.id}`,
+        difficulty: 'medium',
+        statement: {
+          ar: `تنتمي شخصية ${char.name.ar} إلى ${otherCharWithDiffAff.affiliation.ar}.`,
+          en: `${char.name.en} belongs to ${otherCharWithDiffAff.affiliation.en}.`
+        },
+        isCorrect: false,
+        explanation: {
+          ar: `خطأ؛ ${char.name.ar} تنتمي في الحقيقة إلى ${char.affiliation.ar}.`,
+          en: `False; ${char.name.en} actually belongs to ${char.affiliation.en}.`
+        }
+      });
+    }
+  });
+
+  return { triviaQuestions, trueFalseQuestions };
 }

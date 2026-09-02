@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../lib/i18n';
 import { useGame } from '../../context/GameContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -16,6 +16,13 @@ export const ChaosRealmCard: React.FC<ChaosRealmCardProps> = ({ onOpenWorldModal
   const { chaosFilter, setChaosCategoryFilter } = useGame();
   const { theme } = useTheme();
   const isLight = theme === 'light';
+
+  const [, setUpdateTrigger] = useState(0);
+  useEffect(() => {
+    const handleUpdate = () => setUpdateTrigger(prev => prev + 1);
+    window.addEventListener('ag_utopia_worlds_updated', handleUpdate);
+    return () => window.removeEventListener('ag_utopia_worlds_updated', handleUpdate);
+  }, []);
 
   // Determine current active categories
   const allCategories: { id: WorldType; label: string; icon: React.ReactNode }[] = [

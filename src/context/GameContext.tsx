@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { World, GameModeType, Difficulty, Profile, MatchRecord, SuperRoundResult } from '../types';
-import { allWorlds, getWorldById, ChaosFilter } from '../data/worlds';
+import { getAllWorlds, getWorldById, ChaosFilter } from '../data/worlds';
 import { useAuth } from './AuthContext';
 import { sounds } from '../lib/sound';
 
@@ -429,10 +429,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedMode('super_challenge');
     setMatchType('private');
     if (!selectedWorld) {
-      setSelectedWorld(allWorlds[0]);
+      setSelectedWorld(getAllWorlds()[0] || null);
     }
     if (!opponentProfile) {
-      setOpponentProfile(getSafeRandomOpponent(selectedWorld?.id || 'naruto', profile));
+      setOpponentProfile(getSafeRandomOpponent(selectedWorld?.id || 'default', profile));
     }
     sounds.playVictory();
     return true;

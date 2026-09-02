@@ -1,16 +1,11 @@
 import { World, WorldType, Difficulty, TriviaQuestion, TrueFalseQuestion, Character } from '../../types';
+import { getLoadedCustomWorlds, saveCustomWorldToDb, deleteCustomWorldFromDb } from '../../lib/indexedDbStorage';
 
 export const BUILT_IN_WORLDS: World[] = [];
 
-// Helper to get custom worlds created by admin in localStorage
+// Helper to get custom worlds created by admin
 export function getCustomWorlds(): World[] {
-  try {
-    const saved = localStorage.getItem('ag_utopia_custom_worlds');
-    return saved ? JSON.parse(saved) : [];
-  } catch (e) {
-    console.error('Failed to load custom worlds from localStorage', e);
-    return [];
-  }
+  return getLoadedCustomWorlds();
 }
 
 // Helper to get all active worlds (built-in + admin created)
@@ -19,31 +14,15 @@ export function getAllWorlds(): World[] {
   return [...BUILT_IN_WORLDS, ...custom];
 }
 
-// Backward-compatible export
+// Backward-compatible export getter
 export const allWorlds: World[] = getAllWorlds();
 
-export function saveCustomWorld(world: World): void {
-  try {
-    const existing = getCustomWorlds();
-    const filtered = existing.filter(w => w.id !== world.id);
-    const updated = [...filtered, { ...world, isCustom: true, created_at: world.created_at || new Date().toISOString() }];
-    localStorage.setItem('ag_utopia_custom_worlds', JSON.stringify(updated));
-    // Trigger storage event for UI reactivity if needed
-    window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
-  } catch (e) {
-    console.error('Failed to save custom world', e);
-  }
+export function saveCustomWorld(world: World): Promise<void> | void {
+  return saveCustomWorldToDb(world);
 }
 
-export function deleteCustomWorld(worldId: string): void {
-  try {
-    const existing = getCustomWorlds();
-    const updated = existing.filter(w => w.id !== worldId);
-    localStorage.setItem('ag_utopia_custom_worlds', JSON.stringify(updated));
-    window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
-  } catch (e) {
-    console.error('Failed to delete custom world', e);
-  }
+export function deleteCustomWorld(worldId: string): Promise<void> | void {
+  return deleteCustomWorldFromDb(worldId);
 }
 
 export const chaosWorld: World = {

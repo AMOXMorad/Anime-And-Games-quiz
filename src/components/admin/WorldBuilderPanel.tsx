@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../lib/i18n';
 import { sounds } from '../../lib/sound';
 import { World, WorldType, Character, TriviaQuestion, TrueFalseQuestion } from '../../types';
 import { saveCustomWorld, deleteCustomWorld, getCustomWorlds, BUILT_IN_WORLDS } from '../../data/worlds';
 import { downloadWorldExcelTemplate, parseWorldExcelFile, ParsedExcelWorldData } from '../../lib/excelWorldHelper';
+import { compressImage } from '../../lib/imageCompressor';
 import { 
   Globe, 
   Download, 
@@ -24,7 +25,8 @@ import {
   ArrowRight,
   Layers,
   HelpCircle,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -42,6 +44,8 @@ export const WorldBuilderPanel: React.FC = () => {
 
   // Uploaded Images map (filename -> dataUrl)
   const [uploadedImages, setUploadedImages] = useState<Map<string, string>>(new Map());
+  const [isCompressingImages, setIsCompressingImages] = useState<boolean>(false);
+  const [compressProgress, setCompressProgress] = useState<{ current: number; total: number } | null>(null);
 
   // World Meta Form State
   const [worldCategory, setWorldCategory] = useState<WorldType>('anime');
@@ -56,10 +60,20 @@ export const WorldBuilderPanel: React.FC = () => {
   const [themeColor, setThemeColor] = useState<string>('#06b6d4');
   const [bannerUrl, setBannerUrl] = useState<string>('');
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Status feedback
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
   const [activeCustomWorlds, setActiveCustomWorlds] = useState<World[]>(() => getCustomWorlds());
+
+  // Keep active custom worlds state strictly in sync with storage updates
+  useEffect(() => {
+    const handleSync = () => {
+      setActiveCustomWorlds(getCustomWorlds());
+    };
+    window.addEventListener('ag_utopia_worlds_updated', handleSync);
+    return () => window.removeEventListener('ag_utopia_worlds_updated', handleSync);
+  }, []);
 
   // Step Tracker
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -104,53 +118,53 @@ export const WorldBuilderPanel: React.FC = () => {
     }
   };
 
-  // Handle Multi-Images Upload
-  const handleMultiImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Multi-Images Upload with smart auto-compression
+  const handleMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const newMap = new Map(uploadedImages);
-    let loadedCount = 0;
+    const fileList = Array.from(files);
+    setIsCompressingImages(true);
+    setCompressProgress({ current: 0, total: fileList.length });
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          newMap.set(file.name.toLowerCase().trim(), result);
-          // Also set without extension for fuzzy matching
-          const withoutExt = file.name.replace(/\.[^/.]+$/, '').toLowerCase().trim();
-          newMap.set(withoutExt, result);
-        }
-        loadedCount++;
-        if (loadedCount === files.length) {
-          setUploadedImages(new Map(newMap));
-          sounds.playClaim();
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    const newMap = new Map(uploadedImages);
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      try {
+        const compressed = await compressImage(file, 400, 400, 0.85);
+        newMap.set(file.name.toLowerCase().trim(), compressed);
+        const withoutExt = file.name.replace(/\.[^/.]+$/, '').toLowerCase().trim();
+        newMap.set(withoutExt, compressed);
+      } catch (err) {
+        console.error(`Failed compressing ${file.name}`, err);
+      }
+      setCompressProgress({ current: i + 1, total: fileList.length });
+    }
+
+    setUploadedImages(new Map(newMap));
+    setIsCompressingImages(false);
+    setCompressProgress(null);
+    sounds.playClaim();
   };
 
-  // Handle World Banner Image
-  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle World Banner Image with compression
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        setBannerPreview(result);
-        setBannerUrl(result);
-        sounds.playClick();
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 1280, 720, 0.85);
+      setBannerPreview(compressed);
+      setBannerUrl(compressed);
+      sounds.playClick();
+    } catch (err) {
+      console.error('Failed to compress banner:', err);
+    }
   };
 
   // Bind character avatar: lookup uploaded map, or URL, or fallback
-  const getCharacterAvatar = (char: Character): string => {
+  const getCharacterAvatar = (char: Character, index: number): string => {
     const raw = (char.avatar || '').toLowerCase().trim();
     if (uploadedImages.has(raw)) {
       return uploadedImages.get(raw)!;
@@ -159,6 +173,13 @@ export const WorldBuilderPanel: React.FC = () => {
     if (uploadedImages.has(withoutExt)) {
       return uploadedImages.get(withoutExt)!;
     }
+    // Also try matching by character index (e.g. 1.png, 2.png or 1, 2)
+    if (uploadedImages.has(`${index + 1}`)) {
+      return uploadedImages.get(`${index + 1}`)!;
+    }
+    if (uploadedImages.has(`image_${index + 1}`)) {
+      return uploadedImages.get(`image_${index + 1}`)!;
+    }
     if (char.avatar && (char.avatar.startsWith('http') || char.avatar.startsWith('data:'))) {
       return char.avatar;
     }
@@ -166,7 +187,7 @@ export const WorldBuilderPanel: React.FC = () => {
   };
 
   // Save and Publish World
-  const handleSaveAndPublish = () => {
+  const handleSaveAndPublish = async () => {
     if (!nameAr.trim() || !nameEn.trim()) {
       setFeedback({ success: false, message: 'يرجى إدخال اسم العالم بالعربية والإنجليزية.' });
       sounds.playWrong();
@@ -185,7 +206,7 @@ export const WorldBuilderPanel: React.FC = () => {
     const finalCharacters: Character[] = parsedData.characters.map((c, idx) => ({
       ...c,
       id: `${finalWorldId}_char_${idx + 1}_${c.id}`,
-      avatar: getCharacterAvatar(c)
+      avatar: getCharacterAvatar(c, idx)
     }));
 
     // Finalize Trivia
@@ -223,23 +244,35 @@ export const WorldBuilderPanel: React.FC = () => {
       created_at: new Date().toISOString()
     };
 
-    saveCustomWorld(newWorld);
-    setActiveCustomWorlds(getCustomWorlds());
-    sounds.playVictory();
-    confetti({ particleCount: 150, spread: 100 });
+    setIsSaving(true);
+    try {
+      await saveCustomWorld(newWorld);
+      setActiveCustomWorlds(getCustomWorlds());
+      sounds.playVictory();
+      confetti({ particleCount: 150, spread: 100 });
 
-    setFeedback({
-      success: true,
-      message: `🎉 تم بنجاح إنشاء ونشر عالم "${nameAr}" (${finalWorldId})! أصبح متاحاً الآن في الرئيسية، أوضاع اللعب، ونظام الفوضى الكونية.`
-    });
+      setFeedback({
+        success: true,
+        message: `🎉 تم بنجاح إنشاء ونشر وحفظ عالم "${nameAr}" (${finalWorldId})! أصبح متاحاً الآن في الرئيسية، أوضاع اللعب، ونظام الفوضى الكونية.`
+      });
 
-    // Reset Form
-    setCurrentStep(4);
+      // Reset Form
+      setCurrentStep(4);
+    } catch (err: any) {
+      console.error(err);
+      setFeedback({
+        success: false,
+        message: `فشل حفظ العالم: ${err.message || 'حدث خطأ غير متوقع'}`
+      });
+      sounds.playWrong();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteWorld = (id: string) => {
+  const handleDeleteWorld = async (id: string) => {
     if (confirm(`هل أنت متأكد من حذف هذا العالم (${id}) نهائياً؟`)) {
-      deleteCustomWorld(id);
+      await deleteCustomWorld(id);
       setActiveCustomWorlds(getCustomWorlds());
       sounds.playWrong();
     }
@@ -413,10 +446,25 @@ export const WorldBuilderPanel: React.FC = () => {
               accept="image/*"
               onChange={handleMultiImageUpload}
               className="hidden"
+              disabled={isCompressingImages}
             />
-            <label htmlFor="multi-img-upload" className="cursor-pointer inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black rounded-xl shadow-lg">
-              <Upload className="w-4 h-4" />
-              <span>اختر ملفات الصور المتعددة من جهازك (Select Multiple Images)</span>
+            <label 
+              htmlFor="multi-img-upload" 
+              className={`cursor-pointer inline-flex items-center gap-2 px-6 py-3 text-white text-xs font-black rounded-xl shadow-lg transition-all ${
+                isCompressingImages ? 'bg-purple-800 cursor-not-allowed opacity-80' : 'bg-purple-600 hover:bg-purple-500'
+              }`}
+            >
+              {isCompressingImages ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>جاري معالجة وضغط الصور ({compressProgress?.current || 0}/{compressProgress?.total || 0})...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  <span>اختر ملفات الصور المتعددة من جهازك (Select Multiple Images)</span>
+                </>
+              )}
             </label>
           </div>
 
@@ -426,8 +474,12 @@ export const WorldBuilderPanel: React.FC = () => {
               <h4 className="text-xs font-black text-slate-300">حالة صور الشخصيات في العالم:</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-1">
                 {parsedData.characters.map((char, i) => {
-                  const avatarSrc = getCharacterAvatar(char);
-                  const isBound = uploadedImages.has((char.avatar || '').toLowerCase().trim()) || char.avatar?.startsWith('http');
+                  const avatarSrc = getCharacterAvatar(char, i);
+                  const isBound = uploadedImages.has((char.avatar || '').toLowerCase().trim()) || 
+                                  uploadedImages.has((char.avatar || '').replace(/\.[^/.]+$/, '').toLowerCase().trim()) || 
+                                  uploadedImages.has(`${i + 1}`) || 
+                                  char.avatar?.startsWith('http') ||
+                                  char.avatar?.startsWith('data:');
                   return (
                     <div key={i} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3">
                       <img
@@ -437,7 +489,7 @@ export const WorldBuilderPanel: React.FC = () => {
                       />
                       <div className="overflow-hidden flex-1 text-xs">
                         <div className="font-bold text-white truncate">{char.name[lang]}</div>
-                        <div className="text-[10px] text-slate-400 truncate">ملف: {char.avatar || 'غير محدد'}</div>
+                        <div className="text-[10px] text-slate-400 truncate">ملف: {char.avatar || `#${i + 1}`}</div>
                         <div className="mt-1">
                           {isBound ? (
                             <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
@@ -727,10 +779,22 @@ export const WorldBuilderPanel: React.FC = () => {
 
             <button
               onClick={handleSaveAndPublish}
-              className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black text-sm rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center gap-2 cursor-pointer transition-all"
+              disabled={isSaving}
+              className={`px-8 py-3.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black text-sm rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center gap-2 transition-all ${
+                isSaving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
+              }`}
             >
-              <Sparkles className="w-4 h-4 text-amber-300 animate-spin-slow" />
-              <span>🚀 حفظ ونشر العالم في المنصة الآن</span>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>جاري الحفظ والتثبيت في قاعدة البيانات...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300 animate-spin-slow" />
+                  <span>🚀 حفظ ونشر العالم في المنصة الآن</span>
+                </>
+              )}
             </button>
           </div>
         </div>
