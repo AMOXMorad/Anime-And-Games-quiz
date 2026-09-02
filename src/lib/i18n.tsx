@@ -52,6 +52,12 @@ export const translations: Translations = {
   modeTriviaDesc: { ar: 'أسئلة عامة متنوعة باختيار من متعدد بمؤقت ونظام كومبو ومؤثرات حماسية', en: 'General multiple-choice trivia with combos and timers' },
   modeTrueFalse: { ar: 'صح أم خطأ (بليتز)', en: 'True or False (Blitz)' },
   modeTrueFalseDesc: { ar: 'جولات سريعة تعتمد على سرعة البديهة والتركيز اللحظي', en: 'High-octane rapid-fire questions testing your lightning reflexes' },
+  trueBtn: { ar: 'صحيح', en: 'True' },
+  falseBtn: { ar: 'خطأ', en: 'False' },
+  correctAnswerText: { ar: 'إجابة صحيحة! أحسنت 🎉', en: 'Correct Answer! Well done! 🎉' },
+  wrongAnswerText: { ar: 'إجابة خاطئة! ❌', en: 'Wrong Answer! ❌' },
+  statementWasTrue: { ar: 'الجملة كانت: صحيحة (True)', en: 'Statement was: True' },
+  statementWasFalse: { ar: 'الجملة كانت: خاطئة (False)', en: 'Statement was: False' },
   modeSuperChallenge: { ar: 'تحدي الـ Super (1v1 لايف)', en: 'Super Challenge (1v1 Live)' },
   modeSuperChallengeDesc: { ar: 'بطولة ملحمية متعددة الجولات ضد لاعبين أونلاين بنقاط السرعة والدقة', en: 'Multi-round championship against online rivals with speed and accuracy points' },
 

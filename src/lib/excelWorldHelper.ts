@@ -310,7 +310,7 @@ export async function parseWorldExcelFile(file: File): Promise<ParsedExcelWorldD
 }
 
 /**
- * Automatically synthesizes comprehensive Trivia and True/False questions directly from Character entities
+ * Automatically synthesizes comprehensive, randomized Trivia and True/False questions directly from Character entities
  */
 export function generateQuestionsFromCharacters(characters: Character[]): {
   triviaQuestions: TriviaQuestion[];
@@ -321,86 +321,130 @@ export function generateQuestionsFromCharacters(characters: Character[]): {
   const triviaQuestions: TriviaQuestion[] = [];
   const trueFalseQuestions: TrueFalseQuestion[] = [];
 
+  // Helper to pick N random unique elements from an array satisfying a predicate
+  const pickRandomUnique = <T>(arr: T[], count: number, excludePredicate: (item: T) => boolean): T[] => {
+    const pool = arr.filter(item => !excludePredicate(item));
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  };
+
   characters.forEach((char, i) => {
-    const wrongChars = characters.filter(c => c.id !== char.id);
-
-    // 1. Guess by Quote
-    if (char.quote && char.quote.ar && char.quote.ar.length > 3 && wrongChars.length >= 3) {
-      const pool = [char, ...wrongChars.slice(0, 3)].sort(() => 0.5 - Math.random());
-      const correctIdx = pool.findIndex(p => p.id === char.id);
-      triviaQuestions.push({
-        id: `gen_triv_quote_${i + 1}_${char.id}`,
-        difficulty: 'medium',
-        question: {
-          ar: `من صاحب هذه المقولة الشهيرة: «${char.quote.ar}»؟`,
-          en: `Who famously said: "${char.quote.en || char.quote.ar}"?`
-        },
-        options: [
-          pool[0].name,
-          pool[1].name,
-          pool[2].name,
-          pool[3].name
-        ],
-        correctIndex: correctIdx >= 0 ? correctIdx : 0,
-        explanation: {
-          ar: `هذه العبارة هي الاقتباس الأيقوني لشخصية ${char.name.ar}.`,
-          en: `This iconic quote belongs to ${char.name.en}.`
-        }
-      });
+    // 1. Trivia: Guess Character by Famous Quote
+    if (char.quote && char.quote.ar && char.quote.ar.trim().length > 3) {
+      const wrongChars = pickRandomUnique(characters, 3, c => c.id === char.id || c.name.ar === char.name.ar);
+      if (wrongChars.length >= 3) {
+        const pool = [char, ...wrongChars].sort(() => 0.5 - Math.random());
+        const correctIdx = pool.findIndex(p => p.id === char.id);
+        triviaQuestions.push({
+          id: `gen_triv_quote_${i + 1}_${char.id}`,
+          difficulty: 'medium',
+          question: {
+            ar: `من صاحب هذه المقولة الشهيرة: «${char.quote.ar}»؟`,
+            en: `Who famously said: "${char.quote.en || char.quote.ar}"?`
+          },
+          options: [
+            pool[0].name,
+            pool[1].name,
+            pool[2].name,
+            pool[3].name
+          ],
+          correctIndex: correctIdx >= 0 ? correctIdx : 0,
+          explanation: {
+            ar: `هذه العبارة هي الاقتباس الأيقوني الخاص بشخصية ${char.name.ar}.`,
+            en: `This iconic quote belongs to ${char.name.en}.`
+          }
+        });
+      }
     }
 
-    // 2. Guess by Role / Title
-    if (char.role && char.role.ar && wrongChars.length >= 3) {
-      const pool = [char, ...wrongChars.slice(0, 3)].sort(() => 0.5 - Math.random());
-      const correctIdx = pool.findIndex(p => p.id === char.id);
-      triviaQuestions.push({
-        id: `gen_triv_role_${i + 1}_${char.id}`,
-        difficulty: 'easy',
-        question: {
-          ar: `ما هو الدور أو اللقب الأساسي لشخصية ${char.name.ar}؟`,
-          en: `What is the primary role or title of ${char.name.en}?`
-        },
-        options: [
-          pool[0].role,
-          pool[1].role,
-          pool[2].role,
-          pool[3].role
-        ],
-        correctIndex: correctIdx >= 0 ? correctIdx : 0,
-        explanation: {
-          ar: `دور ${char.name.ar} في القصة هو: ${char.role.ar}.`,
-          en: `The role of ${char.name.en} is: ${char.role.en}.`
-        }
-      });
+    // 2. Trivia: Guess Role / Title of Character
+    if (char.role && char.role.ar && char.role.ar.trim()) {
+      const wrongChars = pickRandomUnique(characters, 3, c => c.id === char.id || c.role.ar.trim() === char.role.ar.trim());
+      if (wrongChars.length >= 3) {
+        const pool = [char, ...wrongChars].sort(() => 0.5 - Math.random());
+        const correctIdx = pool.findIndex(p => p.id === char.id);
+        triviaQuestions.push({
+          id: `gen_triv_role_${i + 1}_${char.id}`,
+          difficulty: 'easy',
+          question: {
+            ar: `ما هو الدور أو اللقب الأساسي لشخصية ${char.name.ar}؟`,
+            en: `What is the primary role or title of ${char.name.en}?`
+          },
+          options: [
+            pool[0].role,
+            pool[1].role,
+            pool[2].role,
+            pool[3].role
+          ],
+          correctIndex: correctIdx >= 0 ? correctIdx : 0,
+          explanation: {
+            ar: `دور ${char.name.ar} في القصة هو: ${char.role.ar}.`,
+            en: `The role of ${char.name.en} is: ${char.role.en}.`
+          }
+        });
+      }
     }
 
-    // 3. Guess by Affiliation
-    if (char.affiliation && char.affiliation.ar && wrongChars.length >= 3) {
-      const pool = [char, ...wrongChars.slice(0, 3)].sort(() => 0.5 - Math.random());
-      const correctIdx = pool.findIndex(p => p.id === char.id);
-      triviaQuestions.push({
-        id: `gen_triv_aff_${i + 1}_${char.id}`,
-        difficulty: 'medium',
-        question: {
-          ar: `إلى أي منظمة أو فصيل تنتمي شخصية ${char.name.ar}؟`,
-          en: `Which faction or affiliation does ${char.name.en} belong to?`
-        },
-        options: [
-          pool[0].affiliation,
-          pool[1].affiliation,
-          pool[2].affiliation,
-          pool[3].affiliation
-        ],
-        correctIndex: correctIdx >= 0 ? correctIdx : 0,
-        explanation: {
-          ar: `تنتمي شخصية ${char.name.ar} إلى: ${char.affiliation.ar}.`,
-          en: `${char.name.en} is affiliated with: ${char.affiliation.en}.`
-        }
-      });
+    // 3. Trivia: Guess Power Type of Character
+    if (char.powerType && char.powerType.ar && char.powerType.ar.trim()) {
+      const wrongChars = pickRandomUnique(characters, 3, c => c.id === char.id || c.powerType.ar.trim() === char.powerType.ar.trim());
+      if (wrongChars.length >= 3) {
+        const pool = [char, ...wrongChars].sort(() => 0.5 - Math.random());
+        const correctIdx = pool.findIndex(p => p.id === char.id);
+        triviaQuestions.push({
+          id: `gen_triv_power_${i + 1}_${char.id}`,
+          difficulty: 'hard',
+          question: {
+            ar: `ما هي القدرة أو نوع القوة القتالية لشخصية ${char.name.ar}؟`,
+            en: `What is the combat power or ability of ${char.name.en}?`
+          },
+          options: [
+            pool[0].powerType,
+            pool[1].powerType,
+            pool[2].powerType,
+            pool[3].powerType
+          ],
+          correctIndex: correctIdx >= 0 ? correctIdx : 0,
+          explanation: {
+            ar: `قوة ${char.name.ar} هي: ${char.powerType.ar}.`,
+            en: `The power of ${char.name.en} is: ${char.powerType.en}.`
+          }
+        });
+      }
     }
 
-    // 4. True / False: Affiliation (True)
-    if (char.affiliation && char.affiliation.ar) {
+    // 4. Trivia: Guess Affiliation / Faction
+    if (char.affiliation && char.affiliation.ar && char.affiliation.ar.trim()) {
+      const wrongChars = pickRandomUnique(characters, 3, c => c.id === char.id || c.affiliation.ar.trim() === char.affiliation.ar.trim());
+      if (wrongChars.length >= 3) {
+        const pool = [char, ...wrongChars].sort(() => 0.5 - Math.random());
+        const correctIdx = pool.findIndex(p => p.id === char.id);
+        triviaQuestions.push({
+          id: `gen_triv_aff_${i + 1}_${char.id}`,
+          difficulty: 'medium',
+          question: {
+            ar: `إلى أي منظمة أو فصيل تنتمي شخصية ${char.name.ar}؟`,
+            en: `Which faction or group does ${char.name.en} belong to?`
+          },
+          options: [
+            pool[0].affiliation,
+            pool[1].affiliation,
+            pool[2].affiliation,
+            pool[3].affiliation
+          ],
+          correctIndex: correctIdx >= 0 ? correctIdx : 0,
+          explanation: {
+            ar: `تنتمي شخصية ${char.name.ar} إلى: ${char.affiliation.ar}.`,
+            en: `${char.name.en} is affiliated with: ${char.affiliation.en}.`
+          }
+        });
+      }
+    }
+
+    // === TRUE / FALSE QUESTIONS (Balanced True & False generation) ===
+
+    // TF 1: Affiliation (TRUE)
+    if (char.affiliation && char.affiliation.ar.trim()) {
       trueFalseQuestions.push({
         id: `gen_tf_aff_true_${i + 1}_${char.id}`,
         difficulty: 'easy',
@@ -410,30 +454,104 @@ export function generateQuestionsFromCharacters(characters: Character[]): {
         },
         isCorrect: true,
         explanation: {
-          ar: `صحيح؛ ${char.name.ar} تنتمي إلى ${char.affiliation.ar}.`,
-          en: `Correct; ${char.name.en} belongs to ${char.affiliation.en}.`
+          ar: `العبارة صحيحة؛ ${char.name.ar} تنتمي بالفعل إلى ${char.affiliation.ar}.`,
+          en: `True; ${char.name.en} indeed belongs to ${char.affiliation.en}.`
         }
       });
     }
 
-    // 5. True / False: Wrong Affiliation (False)
-    const otherCharWithDiffAff = characters.find(c => c.id !== char.id && c.affiliation.ar !== char.affiliation.ar);
-    if (otherCharWithDiffAff) {
+    // TF 2: Affiliation (FALSE) - Swapped with random other character
+    const wrongAffChar = pickRandomUnique(characters, 1, c => c.id === char.id || c.affiliation.ar.trim() === char.affiliation.ar.trim())[0];
+    if (wrongAffChar) {
       trueFalseQuestions.push({
         id: `gen_tf_aff_false_${i + 1}_${char.id}`,
         difficulty: 'medium',
         statement: {
-          ar: `تنتمي شخصية ${char.name.ar} إلى ${otherCharWithDiffAff.affiliation.ar}.`,
-          en: `${char.name.en} belongs to ${otherCharWithDiffAff.affiliation.en}.`
+          ar: `تنتمي شخصية ${char.name.ar} إلى ${wrongAffChar.affiliation.ar}.`,
+          en: `${char.name.en} belongs to ${wrongAffChar.affiliation.en}.`
         },
         isCorrect: false,
         explanation: {
-          ar: `خطأ؛ ${char.name.ar} تنتمي في الحقيقة إلى ${char.affiliation.ar}.`,
+          ar: `العبارة خاطئة؛ ${char.name.ar} تنتمي في الحقيقة إلى ${char.affiliation.ar} (وليس ${wrongAffChar.affiliation.ar}).`,
           en: `False; ${char.name.en} actually belongs to ${char.affiliation.en}.`
+        }
+      });
+    }
+
+    // TF 3: Power Type (TRUE)
+    if (char.powerType && char.powerType.ar.trim()) {
+      trueFalseQuestions.push({
+        id: `gen_tf_pwr_true_${i + 1}_${char.id}`,
+        difficulty: 'medium',
+        statement: {
+          ar: `تمتلك شخصية ${char.name.ar} القدرة القتالية: ${char.powerType.ar}.`,
+          en: `${char.name.en} possesses the power: ${char.powerType.en}.`
+        },
+        isCorrect: true,
+        explanation: {
+          ar: `العبارة صحيحة؛ قدرة ${char.name.ar} هي ${char.powerType.ar}.`,
+          en: `True; ${char.name.en}'s power is ${char.powerType.en}.`
+        }
+      });
+    }
+
+    // TF 4: Power Type (FALSE) - Swapped with random other character
+    const wrongPwrChar = pickRandomUnique(characters, 1, c => c.id === char.id || c.powerType.ar.trim() === char.powerType.ar.trim())[0];
+    if (wrongPwrChar) {
+      trueFalseQuestions.push({
+        id: `gen_tf_pwr_false_${i + 1}_${char.id}`,
+        difficulty: 'hard',
+        statement: {
+          ar: `تمتلك شخصية ${char.name.ar} القدرة القتالية: ${wrongPwrChar.powerType.ar}.`,
+          en: `${char.name.en} possesses the power: ${wrongPwrChar.powerType.en}.`
+        },
+        isCorrect: false,
+        explanation: {
+          ar: `العبارة خاطئة؛ هذه قوة ${wrongPwrChar.name.ar}، بينما قوة ${char.name.ar} هي: ${char.powerType.ar}.`,
+          en: `False; that is ${wrongPwrChar.name.en}'s power. ${char.name.en}'s power is: ${char.powerType.en}.`
+        }
+      });
+    }
+
+    // TF 5: Role (TRUE)
+    if (char.role && char.role.ar.trim()) {
+      trueFalseQuestions.push({
+        id: `gen_tf_role_true_${i + 1}_${char.id}`,
+        difficulty: 'easy',
+        statement: {
+          ar: `دور شخصية ${char.name.ar} في القصة هو ${char.role.ar}.`,
+          en: `The role of ${char.name.en} in the story is ${char.role.en}.`
+        },
+        isCorrect: true,
+        explanation: {
+          ar: `العبارة صحيحة؛ ${char.name.ar} هي ${char.role.ar}.`,
+          en: `True; ${char.name.en} is ${char.role.en}.`
+        }
+      });
+    }
+
+    // TF 6: Role (FALSE) - Swapped with random other character
+    const wrongRoleChar = pickRandomUnique(characters, 1, c => c.id === char.id || c.role.ar.trim() === char.role.ar.trim())[0];
+    if (wrongRoleChar) {
+      trueFalseQuestions.push({
+        id: `gen_tf_role_false_${i + 1}_${char.id}`,
+        difficulty: 'medium',
+        statement: {
+          ar: `دور شخصية ${char.name.ar} في القصة هو ${wrongRoleChar.role.ar}.`,
+          en: `The role of ${char.name.en} in the story is ${wrongRoleChar.role.en}.`
+        },
+        isCorrect: false,
+        explanation: {
+          ar: `العبارة خاطئة؛ دور ${char.name.ar} في الحقيقة هو ${char.role.ar}.`,
+          en: `False; the role of ${char.name.en} is actually ${char.role.en}.`
         }
       });
     }
   });
 
-  return { triviaQuestions, trueFalseQuestions };
+  // Thoroughly shuffle all Trivia and True/False questions
+  const shuffledTrivia = [...triviaQuestions].sort(() => 0.5 - Math.random());
+  const shuffledTF = [...trueFalseQuestions].sort(() => 0.5 - Math.random());
+
+  return { triviaQuestions: shuffledTrivia, trueFalseQuestions: shuffledTF };
 }

@@ -36,6 +36,7 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
   const [tfQuestionIndex, setTfQuestionIndex] = useState<number>(0);
   const [tfQuestions, setTfQuestions] = useState<any[]>([]);
   const [tfAnswered, setTfAnswered] = useState<boolean>(false);
+  const [tfUserChoice, setTfUserChoice] = useState<boolean | null>(null);
   const [tfTimeLeft, setTfTimeLeft] = useState<number>(6);
 
   // Round 2 (Trivia) state
@@ -105,6 +106,7 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
 
   const handleTfAnswer = (choice: boolean) => {
     if (tfAnswered) return;
+    setTfUserChoice(choice);
     setTfAnswered(true);
     const q = tfQuestions[tfQuestionIndex];
     if (choice === q.isCorrect) {
@@ -125,6 +127,7 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
     if (tfQuestionIndex + 1 < tfQuestions.length) {
       setTfQuestionIndex(prev => prev + 1);
       setTfAnswered(false);
+      setTfUserChoice(null);
       setTfTimeLeft(6);
     } else {
       // Move to Round 2
@@ -252,28 +255,75 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
             <button
               disabled={tfAnswered}
               onClick={() => handleTfAnswer(true)}
-              className="py-4 rounded-2xl font-black text-sm bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-300 hover:text-white transition-all flex items-center justify-center gap-2"
+              className={`py-4 rounded-2xl font-black text-sm border-2 transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                tfAnswered
+                  ? tfQuestions[tfQuestionIndex].isCorrect === true
+                    ? 'bg-emerald-950 border-emerald-500 text-emerald-300 ring-2 ring-emerald-400'
+                    : tfUserChoice === true
+                    ? 'bg-rose-950 border-rose-500 text-rose-300 ring-2 ring-rose-400'
+                    : 'bg-slate-950/40 border-slate-900 opacity-40'
+                  : 'bg-emerald-600/20 hover:bg-emerald-600/40 border-emerald-500/40 text-emerald-300'
+              }`}
             >
               <Check className="w-5 h-5" />
-              <span>صح (TRUE)</span>
+              <span>صحيح (TRUE)</span>
             </button>
             <button
               disabled={tfAnswered}
               onClick={() => handleTfAnswer(false)}
-              className="py-4 rounded-2xl font-black text-sm bg-rose-600/20 hover:bg-rose-600 border border-rose-500/40 text-rose-300 hover:text-white transition-all flex items-center justify-center gap-2"
+              className={`py-4 rounded-2xl font-black text-sm border-2 transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                tfAnswered
+                  ? tfQuestions[tfQuestionIndex].isCorrect === false
+                    ? 'bg-emerald-950 border-emerald-500 text-emerald-300 ring-2 ring-emerald-400'
+                    : tfUserChoice === false
+                    ? 'bg-rose-950 border-rose-500 text-rose-300 ring-2 ring-rose-400'
+                    : 'bg-slate-950/40 border-slate-900 opacity-40'
+                  : 'bg-rose-600/20 hover:bg-rose-600/40 border-rose-500/40 text-rose-300'
+              }`}
             >
               <X className="w-5 h-5" />
               <span>خطأ (FALSE)</span>
             </button>
           </div>
 
+          {/* Feedback Card */}
+          {tfAnswered && (
+            <div className={`mt-5 p-4 rounded-2xl border text-center space-y-1.5 animate-fadeIn max-w-md mx-auto ${
+              tfUserChoice === tfQuestions[tfQuestionIndex].isCorrect 
+                ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-200' 
+                : 'bg-rose-950/80 border-rose-500/60 text-rose-200'
+            }`}>
+              <div className="font-black text-xs flex items-center justify-center gap-1.5">
+                {tfUserChoice === tfQuestions[tfQuestionIndex].isCorrect ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span className="text-emerald-300">إجابتك صحيحة! أحسنت 🎉</span>
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4 text-rose-400" />
+                    <span className="text-rose-300">إجابتك خاطئة! ❌</span>
+                  </>
+                )}
+                <span className="text-slate-300 font-bold ms-1">
+                  (حقيقة العبارة: {tfQuestions[tfQuestionIndex].isCorrect ? 'صحيحة ✅' : 'خاطئة ❌'})
+                </span>
+              </div>
+              {tfQuestions[tfQuestionIndex].explanation && (
+                <div className="text-[11px] text-slate-300 pt-1 border-t border-slate-700/40 leading-tight">
+                  💡 {tfQuestions[tfQuestionIndex].explanation[lang]}
+                </div>
+              )}
+            </div>
+          )}
+
           {tfAnswered && (
             <div className="mt-6 flex justify-center">
               <button
                 onClick={nextTfQuestion}
-                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs rounded-xl shadow-lg animate-bounce flex items-center gap-1.5"
+                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg animate-bounce flex items-center gap-1.5 cursor-pointer"
               >
-                <span>{tfQuestionIndex + 1 < tfQuestions.length ? 'السؤال التالي' : 'الانتقال للجولة 2'}</span>
+                <span>{tfQuestionIndex + 1 < tfQuestions.length ? 'السؤال التالي' : 'الانتقال للجولة 2 (الترايفيا)'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

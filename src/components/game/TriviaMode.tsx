@@ -4,7 +4,7 @@ import { useI18n } from '../../lib/i18n';
 import { useGame } from '../../context/GameContext';
 import { sounds } from '../../lib/sound';
 import { shuffleTriviaOptions } from '../../data/worlds';
-import { Timer, Zap, Sparkles, AlertCircle, ArrowRight, Trophy, Flag, AlertTriangle, Flame, Coins } from 'lucide-react';
+import { Timer, Zap, Sparkles, AlertCircle, ArrowRight, Trophy, Flag, AlertTriangle, Flame, Coins, Check, X } from 'lucide-react';
 
 interface TriviaModeProps {
   world: World;
@@ -297,20 +297,66 @@ export const TriviaMode: React.FC<TriviaModeProps> = ({ world, difficulty, onFin
           })}
         </div>
 
-        {/* Explanation / Next Question Button */}
+        {/* Detailed Feedback / Next Question Button */}
         {isAnswered && (
-          <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
-            <div className="text-xs text-slate-300 max-w-md">
-              {currentQ.explanation ? currentQ.explanation[lang] : 'إجابة صحيحة! تابع للأسئلة التالية.'}
-            </div>
+          <div className="pt-4 border-t border-slate-800 space-y-4 animate-fadeIn">
+            {(() => {
+              const isCorrect = selectedOption === currentQ.correctIndex;
+              return (
+                <div className={`p-4 rounded-2xl border text-start space-y-1.5 ${
+                  isCorrect 
+                    ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-200' 
+                    : 'bg-rose-950/80 border-rose-500/80 text-rose-200'
+                }`}>
+                  <div className="flex items-center gap-2 font-black text-sm">
+                    {isCorrect ? (
+                      <>
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40 flex-shrink-0">
+                          <Check className="w-4 h-4" />
+                        </div>
+                        <span className="text-emerald-300">إجابتك صحيحة! أحسنت 🎉</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/40 flex-shrink-0">
+                          <X className="w-4 h-4" />
+                        </div>
+                        <span className="text-rose-300">إجابتك خاطئة! ❌</span>
+                      </>
+                    )}
+                  </div>
 
-            <button
-              onClick={handleNext}
-              className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-1.5 transition-all"
-            >
-              <span>{currentIndex + 1 < questions.length ? 'السؤال التالي' : 'عرض النتائج النهائية'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+                  <div className="text-xs text-slate-200 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-slate-400 font-medium">الإجابة الصحيحة هي:</span>
+                    <span className="font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                      {currentQ.options[currentQ.correctIndex][lang]}
+                    </span>
+                    {!isCorrect && selectedOption !== null && (
+                      <span className="text-slate-400 text-[11px]">
+                        (اختيارك كان: {currentQ.options[selectedOption][lang]})
+                      </span>
+                    )}
+                  </div>
+
+                  {currentQ.explanation && (
+                    <div className="text-xs text-slate-300 pt-1.5 border-t border-slate-700/50 leading-relaxed">
+                      💡 <span className="font-bold text-white">التوضيح: </span>
+                      {currentQ.explanation[lang]}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleNext}
+                className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span>{currentIndex + 1 < questions.length ? 'السؤال التالي' : 'عرض النتائج النهائية'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 

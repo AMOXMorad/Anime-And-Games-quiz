@@ -268,7 +268,7 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
           <button
             disabled={isAnswered}
             onClick={() => handleAnswer(true)}
-            className={`p-6 rounded-2xl border-2 font-black text-base flex flex-col items-center justify-center gap-2 transition-all duration-200 ${
+            className={`p-6 rounded-2xl border-2 font-black text-base flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${
               isAnswered
                 ? currentQ.isCorrect === true
                   ? 'bg-emerald-950 border-emerald-500 text-emerald-300 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
@@ -281,14 +281,14 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
             <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
               <Check className="w-6 h-6" />
             </div>
-            <span>{t('trueBtn')} (صحيح)</span>
+            <span>صحيح (True)</span>
           </button>
 
           {/* FALSE BUTTON */}
           <button
             disabled={isAnswered}
             onClick={() => handleAnswer(false)}
-            className={`p-6 rounded-2xl border-2 font-black text-base flex flex-col items-center justify-center gap-2 transition-all duration-200 ${
+            className={`p-6 rounded-2xl border-2 font-black text-base flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${
               isAnswered
                 ? currentQ.isCorrect === false
                   ? 'bg-emerald-950 border-emerald-500 text-emerald-300 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
@@ -301,25 +301,75 @@ export const TrueFalseMode: React.FC<TrueFalseModeProps> = ({ world, difficulty,
             <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/40">
               <X className="w-6 h-6" />
             </div>
-            <span>{t('falseBtn')} (خطأ)</span>
+            <span>خطأ (False)</span>
           </button>
 
         </div>
 
-        {/* Explanation & Next */}
+        {/* Detailed Feedback & Next */}
         {isAnswered && (
-          <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
-            <div className="text-xs text-slate-300 text-start max-w-md">
-              {currentQ.explanation ? currentQ.explanation[lang] : 'إجابة صحيحة! استعد للسؤال التالي.'}
-            </div>
+          <div className="pt-4 border-t border-slate-800 space-y-4 animate-fadeIn">
+            {(() => {
+              const isUserCorrect = userChoice === currentQ.isCorrect;
+              return (
+                <div className={`p-4 rounded-2xl border text-start space-y-2 ${
+                  isUserCorrect 
+                    ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-200' 
+                    : 'bg-rose-950/80 border-rose-500/80 text-rose-200'
+                }`}>
+                  <div className="flex items-center gap-2 font-black text-sm">
+                    {isUserCorrect ? (
+                      <>
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40 flex-shrink-0">
+                          <Check className="w-4 h-4" />
+                        </div>
+                        <span className="text-emerald-300">إجابتك صحيحة! أحسنت 🎉</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/40 flex-shrink-0">
+                          <X className="w-4 h-4" />
+                        </div>
+                        <span className="text-rose-300">إجابتك خاطئة! ❌</span>
+                      </>
+                    )}
+                  </div>
 
-            <button
-              onClick={handleNext}
-              className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center gap-1.5 transition-all"
-            >
-              <span>{currentIndex + 1 < questions.length ? 'السؤال التالي' : 'عرض النتائج النهائية'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+                  <div className="text-xs text-slate-200 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-slate-400 font-medium">حقيقة العبارة المعروضة:</span>
+                    <span className={`font-black px-2 py-0.5 rounded-lg text-xs ${
+                      currentQ.isCorrect 
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    }`}>
+                      {currentQ.isCorrect ? 'العبارة صحيحة (True) ✅' : 'العبارة خاطئة (False) ❌'}
+                    </span>
+                    {!isUserCorrect && (
+                      <span className="text-slate-400 text-[11px]">
+                        (اختيارك كان: {userChoice === true ? 'صحيح' : userChoice === false ? 'خطأ' : 'انتهى الوقت'})
+                      </span>
+                    )}
+                  </div>
+
+                  {currentQ.explanation && (
+                    <div className="text-xs text-slate-300 pt-2 border-t border-slate-700/50 leading-relaxed">
+                      💡 <span className="font-bold text-white">التوضيح: </span>
+                      {currentQ.explanation[lang]}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleNext}
+                className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span>{currentIndex + 1 < questions.length ? 'السؤال التالي' : 'عرض النتائج النهائية'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
