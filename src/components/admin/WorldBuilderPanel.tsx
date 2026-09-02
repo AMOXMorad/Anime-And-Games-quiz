@@ -964,7 +964,9 @@ export const WorldBuilderPanel: React.FC = () => {
                       <span>{w.name[lang]}</span>
                     </div>
                     <div className="text-[10px] text-cyan-400 font-mono">{w.id} • {w.category}</div>
-                    <div className="text-[10px] text-slate-400">{w.characters.length} شخصية • {w.triviaQuestions.length + w.trueFalseQuestions.length} سؤال</div>
+                    <div className="text-[10px] text-slate-400">
+                      {(w.characters || []).length} شخصية • {((w.triviaQuestions || (w as any).trivia_questions || []).length + ((w.trueFalseQuestions || (w as any).true_false_questions || []).length))} سؤال
+                    </div>
                   </div>
                 </div>
 
