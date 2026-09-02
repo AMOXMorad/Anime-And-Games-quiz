@@ -6,10 +6,14 @@ import { useI18n } from '../../lib/i18n';
 import { sounds } from '../../lib/sound';
 import { AvatarWithFrame } from '../ui/AvatarWithFrame';
 import { LevelBadge } from '../ui/LevelBadge';
-import { Swords, Timer, Zap, Trophy, Shield, Check, X, ArrowRight, UserCheck } from 'lucide-react';
+import { Swords, Timer, Zap, Trophy, Shield, Check, X, ArrowRight, AlertTriangle } from 'lucide-react';
 import confetti from 'canvas-confetti';
-
 import { shuffleTriviaOptions } from '../../data/worlds';
+import { 
+  subscribeToRoomUpdates, 
+  sendPlayerHeartbeatAndScore, 
+  closeAndArchiveRoom 
+} from '../../lib/multiplayerRoom';
 
 interface SuperChallengeArenaProps {
   world: World;
@@ -26,7 +30,7 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
 }) => {
   const { profile } = useAuth();
   const { lang, t } = useI18n();
-  const { exitGame } = useGame();
+  const { exitGame, superRoomCode, isHost, synchronizedQuestions } = useGame();
 
   const [currentRound, setCurrentRound] = useState<number>(1); // 1: True/False, 2: Trivia, 3: Who Am I
   const [playerScore, setPlayerScore] = useState<number>(0);
@@ -50,18 +54,102 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
   const [whoAmIResolved, setWhoAmIResolved] = useState<boolean>(false);
   const [targetChar, setTargetChar] = useState<any>(null);
 
+  // Multiplayer Live Sync & 20s Disconnect Watchdog
+  const [opponentLastActive, setOpponentLastActive] = useState<string | null>(null);
+  const [opponentDisconnectWarning, setOpponentDisconnectWarning] = useState<number | null>(null);
+  const [isMatchFinished, setIsMatchFinished] = useState<boolean>(false);
+
+  // 1. Initialize Synchronized Question Sequence
   useEffect(() => {
-    // Prepare question pools
-    const tfPool = world.trueFalseQuestions.length > 0 ? world.trueFalseQuestions : world.trueFalseQuestions;
-    setTfQuestions([...tfPool].sort(() => 0.5 - Math.random()).slice(0, 3));
+    if (synchronizedQuestions) {
+      if (synchronizedQuestions.round1_tf && synchronizedQuestions.round1_tf.length > 0) {
+        setTfQuestions(synchronizedQuestions.round1_tf);
+      }
+      if (synchronizedQuestions.round2_trivia && synchronizedQuestions.round2_trivia.length > 0) {
+        setTriviaQuestions(synchronizedQuestions.round2_trivia);
+      }
+      if (synchronizedQuestions.round3_char) {
+        setTargetChar(synchronizedQuestions.round3_char);
+      }
+    } else {
+      // Local fallback if playing solo
+      const tfPool = world.trueFalseQuestions.length > 0 ? world.trueFalseQuestions : [];
+      setTfQuestions([...tfPool].sort(() => 0.5 - Math.random()).slice(0, 3));
 
-    const trPool = world.triviaQuestions.length > 0 ? world.triviaQuestions : world.triviaQuestions;
-    setTriviaQuestions([...trPool].sort(() => 0.5 - Math.random()).slice(0, 3).map(shuffleTriviaOptions));
+      const trPool = world.triviaQuestions.length > 0 ? world.triviaQuestions : [];
+      setTriviaQuestions([...trPool].sort(() => 0.5 - Math.random()).slice(0, 3).map(shuffleTriviaOptions));
 
-    if (world.characters.length > 0) {
-      setTargetChar(world.characters[Math.floor(Math.random() * world.characters.length)]);
+      if (world.characters.length > 0) {
+        setTargetChar(world.characters[Math.floor(Math.random() * world.characters.length)]);
+      }
     }
-  }, [world]);
+  }, [world, synchronizedQuestions]);
+
+  // 2. Realtime Multiplayer Room Subscription
+  useEffect(() => {
+    if (!superRoomCode) return;
+
+    const unsubscribe = subscribeToRoomUpdates(superRoomCode, (updatedRoom) => {
+      const oppScore = isHost ? updatedRoom.game_state.guest_score : updatedRoom.game_state.host_score;
+      const oppLastActive = isHost ? updatedRoom.game_state.guest_last_active : updatedRoom.game_state.host_last_active;
+      
+      if (oppScore !== undefined && oppScore !== null) {
+        setOpponentScore(oppScore);
+      }
+      if (oppLastActive) {
+        setOpponentLastActive(oppLastActive);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [superRoomCode, isHost]);
+
+  // 3. Heartbeat & Live Score Broadcaster (every 2.5s and on score change)
+  useEffect(() => {
+    if (!superRoomCode || isMatchFinished) return;
+
+    sendPlayerHeartbeatAndScore(superRoomCode, isHost, playerScore, currentRound);
+
+    const interval = setInterval(() => {
+      sendPlayerHeartbeatAndScore(superRoomCode, isHost, playerScore, currentRound);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [superRoomCode, isHost, playerScore, currentRound, isMatchFinished]);
+
+  // 4. 20-Second Disconnect Watchdog (Auto-Forfeit Victory)
+  useEffect(() => {
+    if (!superRoomCode || !opponentLastActive || isMatchFinished) return;
+
+    const interval = setInterval(() => {
+      const lastTime = new Date(opponentLastActive).getTime();
+      const diffSeconds = (Date.now() - lastTime) / 1000;
+
+      if (diffSeconds >= 20) {
+        // Opponent disconnected for more than 20 seconds -> Automatic Victory!
+        setIsMatchFinished(true);
+        sounds.playVictory();
+        confetti({ particleCount: 150, spread: 100 });
+        const finalPts = playerScore + 600;
+        setPlayerScore(finalPts);
+        closeAndArchiveRoom(
+          superRoomCode,
+          profile?.id || 'host',
+          profile?.username || 'Player',
+          'انسحب المنافس أو انقطع اتصاله لأكثر من 20 ثانية (فوز بالانسحاب)',
+          isHost ? finalPts : opponentScore,
+          isHost ? opponentScore : finalPts
+        );
+        onComplete(finalPts, opponentScore);
+      } else if (diffSeconds >= 8) {
+        setOpponentDisconnectWarning(Math.max(1, Math.ceil(20 - diffSeconds)));
+      } else {
+        setOpponentDisconnectWarning(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [superRoomCode, opponentLastActive, isMatchFinished, playerScore, opponentScore, isHost, profile, onComplete]);
 
   // Round 1 Timer
   useEffect(() => {
@@ -98,8 +186,7 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
   const handleTfTimeout = () => {
     setTfAnswered(true);
     sounds.playWrong();
-    // Opponent might answer
-    if (Math.random() > 0.3) {
+    if (!superRoomCode && Math.random() > 0.3) {
       setOpponentScore(prev => prev + 120);
     }
   };
@@ -112,12 +199,18 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
     if (choice === q.isCorrect) {
       sounds.playCorrect();
       const pts = 120 + tfTimeLeft * 10;
-      setPlayerScore(prev => prev + pts);
+      setPlayerScore(prev => {
+        const nextScore = prev + pts;
+        if (superRoomCode) {
+          sendPlayerHeartbeatAndScore(superRoomCode, isHost, nextScore, 1);
+        }
+        return nextScore;
+      });
     } else {
       sounds.playWrong();
     }
-    // Opponent score simulation
-    if (Math.random() > 0.35) {
+    // Opponent score simulation only if offline/solo
+    if (!superRoomCode && Math.random() > 0.35) {
       setOpponentScore(prev => prev + 110 + Math.floor(Math.random() * 40));
     }
   };
@@ -133,13 +226,16 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
       // Move to Round 2
       setCurrentRound(2);
       sounds.playVictory();
+      if (superRoomCode) {
+        sendPlayerHeartbeatAndScore(superRoomCode, isHost, playerScore, 2);
+      }
     }
   };
 
   const handleTriviaTimeout = () => {
     setTriviaAnswered(true);
     sounds.playWrong();
-    if (Math.random() > 0.4) {
+    if (!superRoomCode && Math.random() > 0.4) {
       setOpponentScore(prev => prev + 140);
     }
   };
@@ -152,11 +248,17 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
     if (idx === q.correctIndex) {
       sounds.playCorrect();
       const pts = 150 + triviaTimeLeft * 8;
-      setPlayerScore(prev => prev + pts);
+      setPlayerScore(prev => {
+        const nextScore = prev + pts;
+        if (superRoomCode) {
+          sendPlayerHeartbeatAndScore(superRoomCode, isHost, nextScore, 2);
+        }
+        return nextScore;
+      });
     } else {
       sounds.playWrong();
     }
-    if (Math.random() > 0.35) {
+    if (!superRoomCode && Math.random() > 0.35) {
       setOpponentScore(prev => prev + 130 + Math.floor(Math.random() * 50));
     }
   };
@@ -172,6 +274,9 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
       // Move to Round 3 (Who Am I)
       setCurrentRound(3);
       sounds.playVictory();
+      if (superRoomCode) {
+        sendPlayerHeartbeatAndScore(superRoomCode, isHost, playerScore, 3);
+      }
     }
   };
 
@@ -180,22 +285,71 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
     setWhoAmIResolved(true);
     if (charId === targetChar.id) {
       sounds.playVictory();
-      setPlayerScore(prev => prev + 300);
+      setPlayerScore(prev => {
+        const nextScore = prev + 300;
+        if (superRoomCode) {
+          sendPlayerHeartbeatAndScore(superRoomCode, isHost, nextScore, 3);
+        }
+        return nextScore;
+      });
     } else {
       sounds.playWrong();
-      setPlayerScore(prev => prev + 50);
+      setPlayerScore(prev => {
+        const nextScore = prev + 50;
+        if (superRoomCode) {
+          sendPlayerHeartbeatAndScore(superRoomCode, isHost, nextScore, 3);
+        }
+        return nextScore;
+      });
     }
-    // Opponent
-    setOpponentScore(prev => prev + (Math.random() > 0.4 ? 280 : 80));
+    if (!superRoomCode) {
+      setOpponentScore(prev => prev + (Math.random() > 0.4 ? 280 : 80));
+    }
   };
 
   const handleFinalFinish = () => {
+    setIsMatchFinished(true);
+    sounds.playVictory();
+    if (superRoomCode) {
+      const isPlayerWinner = playerScore >= opponentScore;
+      closeAndArchiveRoom(
+        superRoomCode,
+        isPlayerWinner ? (profile?.id || 'player') : opponent.id,
+        isPlayerWinner ? (profile?.username || 'Player') : opponent.username,
+        `انتهت المواجهة بفوز ${isPlayerWinner ? profile?.username : opponent.username} بنتيجة ${playerScore} مقابل ${opponentScore}`,
+        isHost ? playerScore : opponentScore,
+        isHost ? opponentScore : playerScore
+      );
+    }
     onComplete(playerScore, opponentScore);
   };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       
+      {/* Disconnect Warning Banner (20s countdown) */}
+      {opponentDisconnectWarning !== null && (
+        <div className="bg-rose-950/90 border border-rose-500 text-rose-200 px-4 py-3 rounded-2xl mb-4 text-xs font-bold flex items-center justify-between animate-pulse shadow-lg">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
+            <span>⚠️ انقطع اتصال الخصم! في حال لم يعد، سيتم إعلان فوزك التلقائي بعد:</span>
+          </div>
+          <span className="font-mono text-sm px-2.5 py-0.5 rounded-lg bg-rose-900 border border-rose-500 text-rose-300 font-black">
+            {opponentDisconnectWarning} ثانية
+          </span>
+        </div>
+      )}
+
+      {/* Room Code Badge */}
+      {superRoomCode && (
+        <div className="flex justify-center mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold shadow-md">
+            <span>كود الغرفة المتزامنة:</span>
+            <span className="text-white font-black">{superRoomCode}</span>
+          </div>
+        </div>
+      )}
+
       {/* Super Battle Live Header (Player vs Opponent) */}
       <div className="bg-slate-900 border border-purple-500/40 rounded-3xl p-6 shadow-[0_0_30px_rgba(147,51,234,0.3)] mb-6 relative overflow-hidden">
         <div className="flex items-center justify-between gap-4">
@@ -391,7 +545,7 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-6">
             <span className="text-xs font-bold text-amber-400">الجولة الحاسمة: خمن الشخصية بأسرع وقت!</span>
-            <h3 className="text-xl font-black text-white mt-1">تلميح ذهبي: "{targetChar.clues.easy[0][lang]}"</h3>
+            <h3 className="text-xl font-black text-white mt-1">تلميح ذهبي: "{targetChar.clues?.easy?.[0]?.[lang] || 'شخصية بارزة في هذا العالم'}"</h3>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

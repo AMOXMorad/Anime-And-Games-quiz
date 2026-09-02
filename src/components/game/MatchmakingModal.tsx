@@ -60,14 +60,23 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
     createPrivateRoom(worldId, difficulty, mode);
   };
 
-  const handleJoinRoom = (e: React.FormEvent) => {
+  const [isJoining, setIsJoining] = useState(false);
+
+  const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = joinPrivateRoom(inputCode);
-    if (!res.success) {
-      setError(res.message);
-    } else {
-      onClose();
+    setIsJoining(true);
+    try {
+      const res = await joinPrivateRoom(inputCode);
+      if (!res.success) {
+        setError(res.message);
+      } else {
+        onClose();
+      }
+    } catch (err: any) {
+      setError(err.message || 'حدث خطأ أثناء الانضمام للغرفة');
+    } finally {
+      setIsJoining(false);
     }
   };
 

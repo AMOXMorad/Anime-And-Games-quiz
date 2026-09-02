@@ -4,6 +4,14 @@ import { getAllWorlds, getWorldById, ChaosFilter } from '../data/worlds';
 import { useAuth } from './AuthContext';
 import { sounds } from '../lib/sound';
 
+import { 
+  createMultiplayerRoom, 
+  joinMultiplayerRoom, 
+  subscribeToRoomUpdates, 
+  SynchronizedRoomQuestions, 
+  MultiplayerRoom 
+} from '../lib/multiplayerRoom';
+
 export type MatchType = 'solo' | 'random' | 'private';
 
 interface GameContextType {
@@ -17,6 +25,7 @@ interface GameContextType {
   superRoomCode: string | null;
   isHost: boolean;
   opponentProfile: Profile | null;
+  synchronizedQuestions: SynchronizedRoomQuestions | null;
   superRoundsResults: SuperRoundResult[];
   activeSuperRound: number;
   playerScore: number;
@@ -32,7 +41,7 @@ interface GameContextType {
   startMatchmaking: (worldId: string, mode: GameModeType, diff: Difficulty) => void;
   startSuperMatchmaking: (worldId: string, diff: Difficulty) => void;
   createPrivateRoom: (worldId: string, diff: Difficulty, mode?: GameModeType) => string;
-  joinPrivateRoom: (code: string) => { success: boolean; message: string };
+  joinPrivateRoom: (code: string) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   reconnectToActiveRoom: () => boolean;
   cancelMatchmaking: () => void;
   finishMatch: (
@@ -284,6 +293,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isHost, setIsHost] = useState<boolean>(true);
   const [opponentProfile, setOpponentProfile] = useState<Profile | null>(null);
 
+  const [synchronizedQuestions, setSynchronizedQuestions] = useState<SynchronizedRoomQuestions | null>(null);
+
   const [activeSuperRound, setActiveSuperRound] = useState<number>(1);
   const [playerScore, setPlayerScore] = useState<number>(0);
   const [opponentScore, setOpponentScore] = useState<number>(0);
@@ -332,6 +343,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOpponentScore(0);
     setOpponentProfile(null);
     setSuperRoomCode(null);
+    setSynchronizedQuestions(null);
     sounds.playClick();
   };
 
@@ -355,6 +367,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPlayerScore(0);
       setOpponentScore(0);
       setSuperRoomCode(null);
+      setSynchronizedQuestions(null);
 
       localStorage.removeItem('ag_utopia_active_room_code');
       setSavedActiveRoomCode(null);
@@ -368,24 +381,49 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const createPrivateRoom = (worldId: string, diff: Difficulty, mode: GameModeType = 'super_challenge'): string => {
-    const prefix = worldId.toUpperCase().slice(0, 4) || 'ROOM';
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
-    const code = `${prefix}-${randomDigits}`;
-
-    setSuperRoomCode(code);
-    localStorage.setItem('ag_utopia_active_room_code', code);
-    setSavedActiveRoomCode(code);
-    setIsHost(true);
-    setMatchType('private');
-    const w = getWorldById(worldId, chaosFilter);
+    const w = getWorldById(worldId, chaosFilter) || getAllWorlds()[0];
     if (w) setSelectedWorld(w);
     setSelectedMode(mode);
     setSelectedDifficulty(diff);
+    setIsHost(true);
+    setMatchType('private');
     sounds.playClick();
-    return code;
+
+    const fallbackCode = (worldId.toUpperCase().slice(0, 4) || 'ROOM') + '-' + Math.floor(1000 + Math.random() * 9000);
+    setSuperRoomCode(fallbackCode);
+
+    if (profile && w) {
+      createMultiplayerRoom(w, diff, profile).then(res => {
+        if (res.success && res.roomCode) {
+          setSuperRoomCode(res.roomCode);
+          localStorage.setItem('ag_utopia_active_room_code', res.roomCode);
+          setSavedActiveRoomCode(res.roomCode);
+
+          if (res.room) {
+            setSynchronizedQuestions(res.room.game_state.questions);
+          }
+
+          // Realtime listener: when guest joins, automatically start game for Host!
+          const unsubscribe = subscribeToRoomUpdates(res.roomCode, (updatedRoom) => {
+            if (updatedRoom.status === 'active' && updatedRoom.guest_id) {
+              setOpponentProfile(updatedRoom.game_state.guest_profile);
+              setSynchronizedQuestions(updatedRoom.game_state.questions);
+              setIsPlaying(true);
+              setActiveSuperRound(1);
+              setPlayerScore(0);
+              setOpponentScore(0);
+              sounds.playMatchFound();
+              unsubscribe();
+            }
+          });
+        }
+      });
+    }
+
+    return fallbackCode;
   };
 
-  const joinPrivateRoom = (code: string): { success: boolean; message: string } => {
+  const joinPrivateRoom = async (code: string): Promise<{ success: boolean; message: string }> => {
     if (!code.trim()) return { success: false, message: 'كود الغرفة غير صالح' };
     const upper = code.toUpperCase().trim();
     
@@ -394,29 +432,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'لا يمكنك الانضمام لغرفتك الخاصة بنفسك! شارك الكود مع صديقك.' };
     }
 
+    if (!profile) return { success: false, message: 'يرجى تسجيل الدخول أو المحاولة مجدداً' };
+
+    const res = await joinMultiplayerRoom(upper, profile);
+    if (!res.success || !res.room) {
+      return { success: false, message: res.message || 'تعذر الانضمام للغرفة' };
+    }
+
+    const room = res.room;
     setSuperRoomCode(upper);
     localStorage.setItem('ag_utopia_active_room_code', upper);
     setSavedActiveRoomCode(upper);
     setIsHost(false);
     setMatchType('private');
-    
-    // Infer world from code prefix
-    let targetWorldId = 'naruto';
-    if (upper.startsWith('REZE')) targetWorldId = 'rezero';
-    else if (upper.startsWith('CHAO')) targetWorldId = 'chaos_realm';
-    else if (upper.startsWith('ATTA') || upper.startsWith('TITA')) targetWorldId = 'attack_on_titan';
-    
-    const w = getWorldById(targetWorldId, chaosFilter);
+
+    const w = getWorldById(room.world_id, chaosFilter) || getAllWorlds()[0];
     if (w) setSelectedWorld(w);
     setSelectedMode('super_challenge');
-    
-    const opp = getSafeRandomOpponent(targetWorldId, profile);
-    setOpponentProfile(opp);
+    setSelectedDifficulty(room.difficulty);
+
+    setOpponentProfile(room.game_state.host_profile);
+    setSynchronizedQuestions(room.game_state.questions);
     setIsPlaying(true);
     setActiveSuperRound(1);
     setPlayerScore(0);
     setOpponentScore(0);
     sounds.playMatchFound();
+
     return { success: true, message: 'تم الانضمام للغرفة بنجاح!' };
   };
 
@@ -540,6 +582,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         savedActiveRoomCode,
         isHost,
         opponentProfile,
+        synchronizedQuestions,
         superRoundsResults,
         activeSuperRound,
         playerScore,
