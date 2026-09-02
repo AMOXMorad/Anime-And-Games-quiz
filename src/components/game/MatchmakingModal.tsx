@@ -40,12 +40,12 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
-  // Auto-close modal when random match is found
+  // Auto-close modal when match starts
   useEffect(() => {
-    if (isPlaying && isOpen && !superRoomCode) {
+    if (isPlaying && isOpen) {
       onClose();
     }
-  }, [isPlaying, isOpen, superRoomCode]);
+  }, [isPlaying, isOpen]);
 
   if (!isOpen) return null;
 

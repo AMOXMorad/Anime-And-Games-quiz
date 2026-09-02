@@ -202,11 +202,29 @@ const MainAppContent: React.FC = () => {
               />
             )}
 
-            {selectedMode === 'super_challenge' && opponentProfile && (
+            {selectedMode === 'super_challenge' && (
               <SuperChallengeArena
                 world={selectedWorld}
                 difficulty={selectedDifficulty}
-                opponent={opponentProfile}
+                opponent={opponentProfile || {
+                  id: 'rival_player',
+                  username: 'المنافس الأسطوري',
+                  tag: '7777',
+                  is_guest: false,
+                  role: 'user',
+                  is_banned: false,
+                  coins: 1000,
+                  xp: 2000,
+                  level: 10,
+                  active_frame_id: 'frame_sharingan',
+                  active_tag_id: 'tag_rookie',
+                  active_title_id: 'title_novice',
+                  showcase_titles: ['title_novice'],
+                  showcase_tags: ['tag_rookie'],
+                  showcase_frames: ['frame_sharingan'],
+                  stats: { totalMatches: 10, wins: 5, correctAnswers: 50, streak: 2, whoAmIWins: 2, triviaWins: 2, superChallengeWins: 1 },
+                  created_at: new Date().toISOString()
+                }}
                 onComplete={handleSuperGameFinish}
               />
             )}

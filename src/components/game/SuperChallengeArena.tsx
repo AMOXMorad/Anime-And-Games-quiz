@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { World, Difficulty, Profile } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useGame } from '../../context/GameContext';
@@ -9,6 +9,8 @@ import { LevelBadge } from '../ui/LevelBadge';
 import { Swords, Timer, Zap, Trophy, Shield, Check, X, ArrowRight, AlertTriangle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { shuffleTriviaOptions } from '../../data/worlds';
+import { normalizeWorld } from '../../lib/indexedDbStorage';
+import { generateQuestionsFromCharacters } from '../../lib/excelWorldHelper';
 import { 
   subscribeToRoomUpdates, 
   sendPlayerHeartbeatAndScore, 
@@ -31,6 +33,8 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
   const { profile } = useAuth();
   const { lang, t } = useI18n();
   const { exitGame, superRoomCode, isHost, synchronizedQuestions } = useGame();
+
+  const normalizedWorld = useMemo(() => normalizeWorld(world), [world]);
 
   const [currentRound, setCurrentRound] = useState<number>(1); // 1: True/False, 2: Trivia, 3: Who Am I
   const [playerScore, setPlayerScore] = useState<number>(0);
@@ -59,31 +63,91 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
   const [opponentDisconnectWarning, setOpponentDisconnectWarning] = useState<number | null>(null);
   const [isMatchFinished, setIsMatchFinished] = useState<boolean>(false);
 
-  // 1. Initialize Synchronized Question Sequence
+  // 1. Initialize Synchronized Question Sequence with Bulletproof Fallbacks
   useEffect(() => {
+    let tf: any[] = [];
+    let tr: any[] = [];
+    let target: any = null;
+
     if (synchronizedQuestions) {
       if (synchronizedQuestions.round1_tf && synchronizedQuestions.round1_tf.length > 0) {
-        setTfQuestions(synchronizedQuestions.round1_tf);
+        tf = synchronizedQuestions.round1_tf;
       }
       if (synchronizedQuestions.round2_trivia && synchronizedQuestions.round2_trivia.length > 0) {
-        setTriviaQuestions(synchronizedQuestions.round2_trivia);
+        tr = synchronizedQuestions.round2_trivia;
       }
       if (synchronizedQuestions.round3_char) {
-        setTargetChar(synchronizedQuestions.round3_char);
-      }
-    } else {
-      // Local fallback if playing solo
-      const tfPool = world.trueFalseQuestions.length > 0 ? world.trueFalseQuestions : [];
-      setTfQuestions([...tfPool].sort(() => 0.5 - Math.random()).slice(0, 3));
-
-      const trPool = world.triviaQuestions.length > 0 ? world.triviaQuestions : [];
-      setTriviaQuestions([...trPool].sort(() => 0.5 - Math.random()).slice(0, 3).map(shuffleTriviaOptions));
-
-      if (world.characters.length > 0) {
-        setTargetChar(world.characters[Math.floor(Math.random() * world.characters.length)]);
+        target = synchronizedQuestions.round3_char;
       }
     }
-  }, [world, synchronizedQuestions]);
+
+    // Pull from normalized world if still empty
+    if (tf.length === 0) {
+      const tfPool = (normalizedWorld?.trueFalseQuestions && normalizedWorld.trueFalseQuestions.length > 0)
+        ? normalizedWorld.trueFalseQuestions
+        : [];
+      tf = [...tfPool].sort(() => 0.5 - Math.random()).slice(0, 3);
+    }
+
+    if (tr.length === 0) {
+      const trPool = (normalizedWorld?.triviaQuestions && normalizedWorld.triviaQuestions.length > 0)
+        ? normalizedWorld.triviaQuestions
+        : [];
+      tr = [...trPool].sort(() => 0.5 - Math.random()).slice(0, 3).map(shuffleTriviaOptions);
+    }
+
+    if (!target) {
+      const charPool = normalizedWorld?.characters || [];
+      if (charPool.length > 0) {
+        target = charPool[Math.floor(Math.random() * charPool.length)];
+      }
+    }
+
+    // Auto-generate if still empty but characters exist
+    if ((tf.length === 0 || tr.length === 0) && (normalizedWorld?.characters?.length || 0) >= 2) {
+      const gen = generateQuestionsFromCharacters(normalizedWorld.characters);
+      if (tf.length === 0) tf = gen.trueFalseQuestions.slice(0, 3);
+      if (tr.length === 0) tr = gen.triviaQuestions.slice(0, 3).map(shuffleTriviaOptions);
+    }
+
+    // Emergency fallbacks so game NEVER renders empty
+    if (tf.length === 0) {
+      tf = [
+        {
+          id: 'tf_emerg_1',
+          difficulty: 'easy',
+          statement: { ar: 'هل شخصيات هذا العالم تمتلك عزيمة وإصراراً لا ينكسر؟', en: 'Do characters in this world possess unbreakable determination?' },
+          isCorrect: true,
+          explanation: { ar: 'صحيح، جميع أبطال هذا العالم معروفون بإصرارهم.', en: 'Correct, all heroes are known for their grit.' }
+        }
+      ];
+    }
+
+    if (tr.length === 0) {
+      tr = [
+        {
+          id: 'tr_emerg_1',
+          difficulty: 'medium',
+          question: { ar: 'ما هو الهدف الأسمى للأبطال في هذا العالم؟', en: 'What is the ultimate goal of heroes in this realm?' },
+          options: [
+            { ar: 'حماية أصدقائهم وعالمهم', en: 'Protect their friends and world' },
+            { ar: 'الاستسلام للظلام', en: 'Surrender to darkness' },
+            { ar: 'الهروب من التحديات', en: 'Escape challenges' },
+            { ar: 'إلغاء القوانين', en: 'Abolish rules' }
+          ],
+          correctIndex: 0
+        }
+      ];
+    }
+
+    if (!target && (normalizedWorld?.characters?.length || 0) > 0) {
+      target = normalizedWorld.characters[0];
+    }
+
+    setTfQuestions(tf);
+    setTriviaQuestions(tr);
+    setTargetChar(target);
+  }, [world, normalizedWorld, synchronizedQuestions]);
 
   // 2. Realtime Multiplayer Room Subscription
   useEffect(() => {
