@@ -5,6 +5,7 @@ import { World, WorldType, Character, TriviaQuestion, TrueFalseQuestion } from '
 import { saveCustomWorld, deleteCustomWorld, getCustomWorlds, BUILT_IN_WORLDS } from '../../data/worlds';
 import { downloadWorldExcelTemplate, parseWorldExcelFile, ParsedExcelWorldData } from '../../lib/excelWorldHelper';
 import { compressImage } from '../../lib/imageCompressor';
+import { isSupabaseConfigured, getSupabaseAnonKey, setCustomSupabaseKey } from '../../lib/supabase';
 import { 
   Globe, 
   Download, 
@@ -26,7 +27,9 @@ import {
   Layers,
   HelpCircle,
   X,
-  Loader2
+  Loader2,
+  Cloud,
+  Key
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -65,15 +68,39 @@ export const WorldBuilderPanel: React.FC = () => {
   // Status feedback
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
   const [activeCustomWorlds, setActiveCustomWorlds] = useState<World[]>(() => getCustomWorlds());
+  const [supabaseKeyInput, setSupabaseKeyInput] = useState<string>(() => {
+    const k = getSupabaseAnonKey();
+    return k.startsWith('eyJ') && !k.includes('dummy') ? k : '';
+  });
+  const [isCloudConfigured, setIsCloudConfigured] = useState<boolean>(() => isSupabaseConfigured());
+  const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
 
   // Keep active custom worlds state strictly in sync with storage updates
   useEffect(() => {
     const handleSync = () => {
       setActiveCustomWorlds(getCustomWorlds());
+      setIsCloudConfigured(isSupabaseConfigured());
     };
     window.addEventListener('ag_utopia_worlds_updated', handleSync);
-    return () => window.removeEventListener('ag_utopia_worlds_updated', handleSync);
+    window.addEventListener('ag_utopia_supabase_key_updated', handleSync);
+    return () => {
+      window.removeEventListener('ag_utopia_worlds_updated', handleSync);
+      window.removeEventListener('ag_utopia_supabase_key_updated', handleSync);
+    };
   }, []);
+
+  const handleSaveSupabaseKey = () => {
+    const cleanKey = supabaseKeyInput.trim();
+    if (!cleanKey.startsWith('eyJ')) {
+      alert('الرجاء إدخال Anon Key صحيح من Supabase (يبدأ بـ eyJ...)');
+      return;
+    }
+    setCustomSupabaseKey(cleanKey);
+    setIsCloudConfigured(true);
+    setShowKeyModal(false);
+    sounds.playVictory();
+    alert('🎉 تم تفعيل المزامنة السحابية بنجاح! سيتم الآن بث ومزامنة جميع العوالم لجميع هواتف وأجهزة اللاعبين.');
+  };
 
   // Step Tracker
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -322,6 +349,97 @@ export const WorldBuilderPanel: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Cloud Sync Status Bar */}
+      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${
+        isCloudConfigured 
+          ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200' 
+          : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+            isCloudConfigured 
+              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' 
+              : 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+          }`}>
+            <Cloud className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-black text-xs sm:text-sm flex items-center gap-2">
+              <span>{isCloudConfigured ? '🟢 المزامنة السحابية الفورية نشطة (Supabase Cloud Sync Active)' : '🟡 المزامنة السحابية غير مفعّلة (وضع الحفظ المحلي)'}</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {isCloudConfigured 
+                ? 'أي عالم يتم إنشاؤه يتم نشره تلقائياً لجميع المستخدمين على كافة الهواتف والأجهزة فوراً.' 
+                : 'يتم حفظ العوالم على هذا المتصفح فقط. لتظهر العوالم لهواتف أصدقائك وكافة اللاعبين، أدخل Anon Key من Supabase.'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowKeyModal(true)}
+          className={`px-4 py-2 rounded-xl text-xs font-black border flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 ${
+            isCloudConfigured 
+              ? 'bg-slate-900 border-slate-700 hover:border-emerald-400 text-slate-300' 
+              : 'bg-amber-600 hover:bg-amber-500 border-amber-400 text-white shadow-lg animate-pulse'
+          }`}
+        >
+          <Key className="w-3.5 h-3.5" />
+          <span>{isCloudConfigured ? 'تعديل المفتاح' : 'إدخال مفتاح السحابة (Cloud Key)'}</span>
+        </button>
+      </div>
+
+      {/* Supabase Key Modal */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 font-black text-white text-base">
+                <Cloud className="w-5 h-5 text-cyan-400" />
+                <span>إعداد مفتاح المزامنة السحابية (Supabase Cloud Key)</span>
+              </div>
+              <button 
+                onClick={() => setShowKeyModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              لجعل العوالم التي تنشئها تظهر فوراً لجميع أصدقائك واللاعبين على هواتفهم وأجهزتهم، الصق الـ <code className="bg-slate-950 px-1.5 py-0.5 rounded text-cyan-300">anon public key</code> من لوحة تحكم مشروعك في Supabase (Settings &rarr; API &rarr; Project API keys &rarr; anon public):
+            </p>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                Supabase Anon Public Key (يبدأ بـ eyJhbGci...):
+              </label>
+              <textarea
+                rows={3}
+                value={supabaseKeyInput}
+                onChange={(e) => setSupabaseKeyInput(e.target.value)}
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-xl p-3 text-xs font-mono text-slate-200 outline-none"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowKeyModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleSaveSupabaseKey}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-xs font-black shadow-lg"
+              >
+                حفظ وتفعيل المزامنة السحابية
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress Steps Header */}
       <div className="grid grid-cols-4 gap-2 text-center text-xs font-bold">
