@@ -1,4 +1,5 @@
 import { World } from '../types';
+import { supabase } from './supabase';
 
 const DB_NAME = 'AG_UTOPIA_DB';
 const DB_VERSION = 1;
@@ -6,6 +7,7 @@ const STORE_WORLDS = 'custom_worlds';
 
 let inMemoryCustomWorlds: World[] = [];
 let isInitialized = false;
+let realtimeChannelSubscribed = false;
 
 // Helper to open IndexedDB
 function openDB(): Promise<IDBDatabase> {
@@ -29,8 +31,46 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+function mapDbToWorld(row: any): World {
+  return {
+    id: row.id,
+    name: typeof row.name === 'string' ? JSON.parse(row.name) : row.name,
+    category: row.category || 'anime',
+    tagline: typeof row.tagline === 'string' ? JSON.parse(row.tagline) : row.tagline,
+    description: typeof row.description === 'string' ? JSON.parse(row.description) : row.description,
+    icon: row.icon || '⚔️',
+    banner: row.banner || 'https://cdn.myanimelist.net/images/anime/13/17405.jpg',
+    themeColor: row.theme_color || row.themeColor || '#06b6d4',
+    accentGlow: row.accent_glow || row.accentGlow || 'rgba(6,182,212,0.4)',
+    characters: Array.isArray(row.characters) ? row.characters : (typeof row.characters === 'string' ? JSON.parse(row.characters) : []),
+    triviaQuestions: Array.isArray(row.trivia_questions) ? row.trivia_questions : (row.triviaQuestions || []),
+    trueFalseQuestions: Array.isArray(row.true_false_questions) ? row.true_false_questions : (row.trueFalseQuestions || []),
+    isCustom: true,
+    created_at: row.created_at || new Date().toISOString()
+  };
+}
+
+function mapWorldToDb(world: World): any {
+  return {
+    id: world.id,
+    name: world.name,
+    category: world.category,
+    tagline: world.tagline,
+    description: world.description,
+    icon: world.icon,
+    banner: world.banner,
+    theme_color: world.themeColor,
+    accent_glow: world.accentGlow,
+    characters: world.characters,
+    trivia_questions: world.triviaQuestions,
+    true_false_questions: world.trueFalseQuestions,
+    is_custom: true,
+    updated_at: new Date().toISOString()
+  };
+}
+
 /**
- * Initialize storage: load from IndexedDB into memory, with migration from localStorage
+ * Initialize storage: load from IndexedDB into memory, then sync from Supabase Cloud DB
  */
 export async function initCustomWorldsStorage(): Promise<World[]> {
   try {
@@ -39,46 +79,136 @@ export async function initCustomWorldsStorage(): Promise<World[]> {
     const store = tx.objectStore(STORE_WORLDS);
     const request = store.getAll();
 
-    return new Promise((resolve) => {
-      request.onsuccess = async () => {
-        let worlds: World[] = request.result || [];
-
-        // Check if there are legacy worlds in localStorage to migrate
-        try {
-          const localSaved = localStorage.getItem('ag_utopia_custom_worlds');
-          if (localSaved) {
-            const parsed: World[] = JSON.parse(localSaved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              for (const w of parsed) {
-                if (!worlds.some(existing => existing.id === w.id)) {
-                  worlds.push(w);
-                  await saveCustomWorldToDb(w);
-                }
-              }
-            }
-          }
-        } catch (_) {}
-
-        inMemoryCustomWorlds = worlds;
+    await new Promise<void>((resolve) => {
+      request.onsuccess = () => {
+        inMemoryCustomWorlds = request.result || [];
         isInitialized = true;
-        
-        // Notify app
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
-        }
-
-        resolve(inMemoryCustomWorlds);
+        resolve();
       };
-
       request.onerror = () => {
-        console.error('Failed to read custom worlds from IndexedDB', request.error);
-        resolve(getFallbackFromLocalStorage());
+        getFallbackFromLocalStorage();
+        resolve();
       };
     });
   } catch (e) {
-    console.error('IndexedDB init error:', e);
-    return getFallbackFromLocalStorage();
+    console.warn('Local IndexedDB load warning:', e);
+    getFallbackFromLocalStorage();
   }
+
+  // Trigger initial UI render with cached local worlds
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+  }
+
+  // Fetch all worlds from Supabase Cloud Database for universal sync
+  syncFromSupabaseCloud().catch(console.error);
+
+  // Setup Realtime synchronization
+  setupSupabaseRealtimeSync();
+
+  return inMemoryCustomWorlds;
+}
+
+/**
+ * Syncs worlds between Local IndexedDB and Supabase Cloud
+ */
+async function syncFromSupabaseCloud(): Promise<void> {
+  try {
+    const { data: cloudWorlds, error } = await supabase
+      .from('custom_worlds')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase fetch custom_worlds error:', error.message);
+      return;
+    }
+
+    if (Array.isArray(cloudWorlds)) {
+      const parsedCloudWorlds = cloudWorlds.map(mapDbToWorld);
+
+      // Merge Cloud Worlds into Local Cache & IndexedDB
+      const mergedMap = new Map<string, World>();
+
+      // 1. Add current local worlds first
+      inMemoryCustomWorlds.forEach(w => mergedMap.set(w.id, w));
+
+      // 2. Override with Cloud Worlds
+      parsedCloudWorlds.forEach(w => mergedMap.set(w.id, w));
+
+      inMemoryCustomWorlds = Array.from(mergedMap.values());
+
+      // Save all merged worlds to local IndexedDB
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE_WORLDS, 'readwrite');
+        const store = tx.objectStore(STORE_WORLDS);
+        for (const world of inMemoryCustomWorlds) {
+          store.put(world);
+        }
+      } catch (_) {}
+
+      // 3. If there are any local worlds NOT in Cloud (e.g. newly created by admin offline), push them to Supabase
+      for (const localWorld of inMemoryCustomWorlds) {
+        if (!cloudWorlds.some(cw => cw.id === localWorld.id)) {
+          supabase.from('custom_worlds').upsert(mapWorldToDb(localWorld)).then(({ error: upsertErr }) => {
+            if (upsertErr) console.error('Failed auto-syncing local world to cloud:', upsertErr);
+          });
+        }
+      }
+
+      // Notify UI
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+      }
+    }
+  } catch (err) {
+    console.error('Failed syncing worlds from Supabase:', err);
+  }
+}
+
+/**
+ * Setup Realtime channel to receive new/updated/deleted worlds live
+ */
+function setupSupabaseRealtimeSync() {
+  if (realtimeChannelSubscribed || typeof window === 'undefined') return;
+  realtimeChannelSubscribed = true;
+
+  supabase
+    .channel('custom_worlds_realtime_sync')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'custom_worlds' },
+      async (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const updatedWorld = mapDbToWorld(payload.new);
+          const filtered = inMemoryCustomWorlds.filter(w => w.id !== updatedWorld.id);
+          inMemoryCustomWorlds = [updatedWorld, ...filtered];
+
+          try {
+            const db = await openDB();
+            const tx = db.transaction(STORE_WORLDS, 'readwrite');
+            tx.objectStore(STORE_WORLDS).put(updatedWorld);
+          } catch (_) {}
+
+          window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+        } else if (payload.eventType === 'DELETE') {
+          const deletedId = (payload.old as any)?.id;
+          if (deletedId) {
+            inMemoryCustomWorlds = inMemoryCustomWorlds.filter(w => w.id !== deletedId);
+
+            try {
+              const db = await openDB();
+              const tx = db.transaction(STORE_WORLDS, 'readwrite');
+              tx.objectStore(STORE_WORLDS).delete(deletedId);
+            } catch (_) {}
+
+            window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+          }
+        }
+      }
+    )
+    .subscribe();
 }
 
 function getFallbackFromLocalStorage(): World[] {
@@ -103,7 +233,7 @@ export function getLoadedCustomWorlds(): World[] {
 }
 
 /**
- * Save a custom world to IndexedDB and update cache
+ * Save a custom world to Cloud Database (Supabase) + Local IndexedDB & Cache
  */
 export async function saveCustomWorldToDb(world: World): Promise<void> {
   const worldToSave = {
@@ -112,16 +242,11 @@ export async function saveCustomWorldToDb(world: World): Promise<void> {
     created_at: world.created_at || new Date().toISOString()
   };
 
-  // Update memory cache immediately
+  // 1. Update memory cache immediately
   const filtered = inMemoryCustomWorlds.filter(w => w.id !== world.id);
-  inMemoryCustomWorlds = [...filtered, worldToSave];
+  inMemoryCustomWorlds = [worldToSave, ...filtered];
 
-  // Try saving to localStorage as extra fallback (safely ignore quota error)
-  try {
-    localStorage.setItem('ag_utopia_custom_worlds', JSON.stringify(inMemoryCustomWorlds));
-  } catch (_) {}
-
-  // Save to IndexedDB
+  // 2. Save to local IndexedDB
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_WORLDS, 'readwrite');
@@ -132,25 +257,35 @@ export async function saveCustomWorldToDb(world: World): Promise<void> {
       req.onerror = () => reject(req.error);
     });
   } catch (e) {
-    console.error('Failed to save world in IndexedDB', e);
+    console.warn('Failed to save world in local IndexedDB', e);
   }
 
-  // Trigger reactive updates across UI
+  // 3. Push to Supabase Cloud Database (Makes it available for all users on all devices)
+  try {
+    const dbPayload = mapWorldToDb(worldToSave);
+    const { error } = await supabase.from('custom_worlds').upsert(dbPayload);
+    if (error) {
+      console.error('Supabase save error:', error);
+      throw new Error(`خطأ في المزامنة السحابية: ${error.message}`);
+    }
+  } catch (e: any) {
+    console.error('Failed pushing world to Supabase cloud:', e);
+    throw e;
+  }
+
+  // 4. Trigger local UI update
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
   }
 }
 
 /**
- * Delete a custom world from IndexedDB and cache
+ * Delete a custom world from Cloud Database + Local IndexedDB & Cache
  */
 export async function deleteCustomWorldFromDb(worldId: string): Promise<void> {
   inMemoryCustomWorlds = inMemoryCustomWorlds.filter(w => w.id !== worldId);
 
-  try {
-    localStorage.setItem('ag_utopia_custom_worlds', JSON.stringify(inMemoryCustomWorlds));
-  } catch (_) {}
-
+  // 1. Delete from local IndexedDB
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_WORLDS, 'readwrite');
@@ -161,9 +296,17 @@ export async function deleteCustomWorldFromDb(worldId: string): Promise<void> {
       req.onerror = () => reject(req.error);
     });
   } catch (e) {
-    console.error('Failed to delete world from IndexedDB', e);
+    console.warn('Failed to delete world from local IndexedDB', e);
   }
 
+  // 2. Delete from Supabase Cloud Database
+  try {
+    await supabase.from('custom_worlds').delete().eq('id', worldId);
+  } catch (e) {
+    console.error('Failed deleting world from Supabase cloud:', e);
+  }
+
+  // 3. Trigger local UI update
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
   }
