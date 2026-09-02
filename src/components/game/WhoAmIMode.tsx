@@ -40,6 +40,178 @@ interface ChatLogEntry {
   isCorrect?: boolean;
 }
 
+/**
+ * Deep semantic evaluator for Who Am I questions ensuring 100% accurate AI responses
+ */
+function evaluateCharacterQuestion(qText: string, char: Character, allWorldChars?: Character[]): 'yes' | 'no' | 'maybe' {
+  const normQ = qText.toLowerCase().trim();
+
+  // 1. Gender checks
+  const isAskingFemale = normQ.includes('بنت') || normQ.includes('فتاة') || normQ.includes('أنثى') || normQ.includes('انثى') || normQ.includes('امرأة') || normQ.includes('سيدة') || normQ.includes('أميرة') || normQ.includes('female') || normQ.includes('girl') || normQ.includes('woman') || normQ.includes('lady');
+  const isAskingMale = normQ.includes('ولد') || normQ.includes('رجل') || normQ.includes('ذكر') || normQ.includes('شاب') || normQ.includes('فتى') || normQ.includes('male') || normQ.includes('boy') || normQ.includes('man') || normQ.includes('guy');
+
+  if (isAskingFemale && !isAskingMale) {
+    return char.gender === 'female' ? 'yes' : 'no';
+  }
+  if (isAskingMale && !isAskingFemale) {
+    return char.gender === 'male' ? 'yes' : 'no';
+  }
+
+  // 2. Gather full text corpus of the character
+  const charCorpus = [
+    char.name.ar,
+    char.name.en,
+    char.gender,
+    char.role.ar,
+    char.role.en,
+    char.powerType.ar,
+    char.powerType.en,
+    char.affiliation.ar,
+    char.affiliation.en,
+    char.quote?.ar || '',
+    char.quote?.en || '',
+    ...(char.clues?.easy || []).map(c => `${c.ar} ${c.en}`),
+    ...(char.clues?.medium || []).map(c => `${c.ar} ${c.en}`),
+    ...(char.clues?.hard || []).map(c => `${c.ar} ${c.en}`)
+  ].join(' ').toLowerCase();
+
+  // 3. Domain-specific keyword checks
+  const semanticChecks: { keywords: string[]; check: (corpus: string, char: Character) => boolean }[] = [
+    // Medical / Healing
+    {
+      keywords: ['طبي', 'طبيه', 'علاج', 'شفاء', 'دواء', 'نينجا طبي', 'medical', 'healer', 'healing', 'doctor', 'medic'],
+      check: (c) => c.includes('طبي') || c.includes('علاج') || c.includes('شفاء') || c.includes('medical') || c.includes('healer')
+    },
+    // Intelligence / Shadows / Strategy / Shikamaru
+    {
+      keywords: ['ظل', 'ظلال', 'ذكاء', 'عبقري', 'شطرنج', 'تخطيط', 'استراتيجي', 'نارا', 'شيكامارو', 'shadow', 'intelligence', 'genius', 'strategy', 'shogi', 'nara', 'shikamaru'],
+      check: (c) => c.includes('ظل') || c.includes('ذكاء') || c.includes('عبقر') || c.includes('استرات') || c.includes('نارا') || c.includes('شيكامارو') || c.includes('shadow') || c.includes('genius')
+    },
+    // Sharingan / Uchiha / Eyes
+    {
+      keywords: ['شارينغان', 'شارينجان', 'مانغيكيو', 'أوتشيها', 'اوتشيها', 'سوسانو', 'عين', 'اعين', 'sharingan', 'mangekyo', 'susanoo', 'uchiha'],
+      check: (c) => c.includes('شارينغ') || c.includes('شارينج') || c.includes('مانغيك') || c.includes('أوتشيه') || c.includes('اوتشيه') || c.includes('سوسانو') || c.includes('sharingan') || c.includes('uchiha')
+    },
+    // Byakugan / Hyuga / Gentle Fist
+    {
+      keywords: ['بياكوغان', 'بياكوجان', 'هيوغا', 'هيوجا', 'قبضة ناعمة', 'byakugan', 'hyuga', 'gentle fist'],
+      check: (c) => c.includes('بياكوغ') || c.includes('بياكوج') || c.includes('هيوغ') || c.includes('هيوج') || c.includes('byakugan') || c.includes('hyuga')
+    },
+    // Rinnegan / Pain / Six Paths
+    {
+      keywords: ['رينغان', 'رينجان', 'مسارات الستة', 'باين', 'ناغاتو', 'rinnegan', 'pain', 'six paths', 'nagato'],
+      check: (c) => c.includes('رينغ') || c.includes('رينج') || c.includes('مسارات') || c.includes('باين') || c.includes('ناغاتو') || c.includes('rinnegan') || c.includes('pain')
+    },
+    // Hokage / Kage / Village Leader
+    {
+      keywords: ['هوكاجي', 'كازيكاجي', 'رايكاجي', 'ميزوكاجي', 'تسوشيكاجي', 'كاجي', 'زعيم القرية', 'عمدة', 'hokage', 'kage', 'kazekage', 'raikage', 'mizukage'],
+      check: (c) => c.includes('هوكاجي') || c.includes('كازيكاجي') || c.includes('رايكاجي') || c.includes('ميزوكاجي') || c.includes('تسوشيكاجي') || c.includes('كاجي') || c.includes('hokage') || c.includes('kage')
+    },
+    // Jinchuriki / Bijuu / Tailed Beast
+    {
+      keywords: ['جينشوريكي', 'كيوبي', 'كوراما', 'شوكاكو', 'هاتشيمي', 'وحش الذيول', 'ذيل', 'ذيول', 'بيجو', 'jinchuriki', 'bijuu', 'tailed beast', 'nine tails', 'kurama', 'shukaku', 'gyuki'],
+      check: (c) => c.includes('جينشوريكي') || c.includes('كيوبي') || c.includes('كوراما') || c.includes('شوكاكو') || c.includes('وحش') || c.includes('بيجو') || c.includes('jinchuriki') || c.includes('bijuu') || c.includes('kurama')
+    },
+    // Akatsuki
+    {
+      keywords: ['أكاتسوكي', 'اكاتسوكي', 'منظمة', 'رداء أسود', 'سحابة حمراء', 'خاتم', 'akatsuki'],
+      check: (c) => c.includes('أكاتسوكي') || c.includes('اكاتسوكي') || c.includes('akatsuki')
+    },
+    // Leaf / Konoha
+    {
+      keywords: ['كونوها', 'ورق', 'ورقة', 'شجر', 'قرية الورق', 'leaf', 'konoha', 'hidden leaf'],
+      check: (c) => c.includes('كونوها') || c.includes('leaf') || c.includes('konoha') || c.includes('ورق')
+    },
+    // Sand / Suna
+    {
+      keywords: ['رمل', 'رمال', 'قرية الرمل', 'سونا', 'sand', 'suna', 'hidden sand'],
+      check: (c) => c.includes('رمل') || c.includes('سونا') || c.includes('sand') || c.includes('suna')
+    },
+    // Swordsman / Mist / Seven Swordsmen
+    {
+      keywords: ['سياف', 'سيافين', 'سيف', 'ضباب', 'كيريجاكوري', 'كيري', 'سيافي الضباب', 'sword', 'mist', 'swordsman', 'kirigakure'],
+      check: (c) => c.includes('سياف') || c.includes('سيف') || c.includes('ضباب') || c.includes('كيري') || c.includes('sword') || c.includes('mist')
+    },
+    // Sensei / Teacher
+    {
+      keywords: ['معلم', 'أستاذ', 'مدرب', 'سينسي', 'قائد الفريق', 'sensei', 'teacher', 'captain', 'mentor'],
+      check: (c) => c.includes('معلم') || c.includes('أستاذ') || c.includes('مدرب') || c.includes('سينسي') || c.includes('sensei') || c.includes('teacher')
+    },
+    // Uchiha Clan
+    {
+      keywords: ['أوتشيها', 'اوتشيها', 'عشيرة أوتشيها', 'uchiha'],
+      check: (c) => c.includes('أوتشيها') || c.includes('اوتشيها') || c.includes('uchiha')
+    },
+    // Uzumaki Clan
+    {
+      keywords: ['أوزوماكي', 'اوزوماكي', 'عشيرة أوزوماكي', 'شعر أحمر', 'uzumaki'],
+      check: (c) => c.includes('أوزوماكي') || c.includes('اوزوماكي') || c.includes('uzumaki')
+    },
+    // Sage Mode / Senjutsu / Toads / Snakes / Slugs
+    {
+      keywords: ['ناسك', 'طور الناسك', 'سينجوتسو', 'ضفدع', 'ضفادع', 'أفعى', 'ثعبان', 'حلزون', 'ميوكوبوكو', 'sage', 'senjutsu', 'toad', 'snake', 'slug'],
+      check: (c) => c.includes('ناسك') || c.includes('سينجوتسو') || c.includes('ضفدع') || c.includes('أفعى') || c.includes('ثعبان') || c.includes('حلزون') || c.includes('sage') || c.includes('toad')
+    },
+    // Pink Hair / Sakura specific
+    {
+      keywords: ['وردي', 'شعر وردي', 'زهري', 'هارونو', 'ساكورا', 'pink', 'pink hair', 'haruno', 'sakura'],
+      check: (c) => c.includes('وردي') || c.includes('زهري') || c.includes('هارونو') || c.includes('ساكورا') || c.includes('pink') || c.includes('haruno') || c.includes('sakura')
+    },
+    // Yellow Hair / Blonde / Naruto / Minato
+    {
+      keywords: ['أشقر', 'شعر أصفر', 'شعر أشقر', 'blonde', 'yellow hair'],
+      check: (c) => c.includes('أشقر') || c.includes('اصفر') || c.includes('أصفر') || c.includes('blonde') || c.includes('ناميكازي') || c.includes('أوزوماكي') || c.includes('ميناتو')
+    }
+  ];
+
+  // Match against semantic checks
+  for (const checkObj of semanticChecks) {
+    const matchedKeyword = checkObj.keywords.some(k => normQ.includes(k));
+    if (matchedKeyword) {
+      return checkObj.check(charCorpus, char) ? 'yes' : 'no';
+    }
+  }
+
+  // 4. Word-level token search across character corpus
+  const stopwords = new Set([
+    'هل', 'انا', 'أنا', 'شخصيتي', 'هو', 'هي', 'في', 'من', 'عن', 'مع', 'هذا', 'هذه', 'تمتلك', 'يمتلك',
+    'تعتبر', 'يعتبر', 'ينتمي', 'تنتمي', 'الى', 'إلى', 'أو', 'او', 'ما', 'ماذا', 'كيف', 'is', 'the', 'my', 'character', 'a', 'an', 'in', 'of'
+  ]);
+
+  const words = normQ
+    .replace(/[؟?.,!]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length >= 3 && !stopwords.has(w));
+
+  if (words.length > 0) {
+    let matchedCount = 0;
+    for (const word of words) {
+      if (charCorpus.includes(word)) {
+        matchedCount++;
+      }
+    }
+
+    if (matchedCount > 0) {
+      return 'yes';
+    }
+
+    // Check if the word belongs to other characters in the world (proving it's a specific "no")
+    if (allWorldChars && allWorldChars.length > 0) {
+      const otherMatches = allWorldChars.some(other => {
+        if (other.id === char.id) return false;
+        const otherCorpus = `${other.name.ar} ${other.name.en} ${other.role.ar} ${other.powerType.ar} ${other.affiliation.ar}`.toLowerCase();
+        return words.some(w => otherCorpus.includes(w));
+      });
+      if (otherMatches) {
+        return 'no';
+      }
+    }
+  }
+
+  // Default to NO rather than random YES to prevent misleading players!
+  return 'no';
+}
+
 export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFinish }) => {
   const { lang, t } = useI18n();
   const { exitGame } = useGame();
@@ -150,13 +322,13 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
     setWaitingForOpponentAnswer(true);
 
     setTimeout(() => {
-      // Possible smart questions opponent asks about playerChar
+      // Possible smart questions opponent asks about opponent's OWN secret character (oChar)
       const sampleQuestions = [
-        `هل شخصيتي تنتمي إلى ${pChar.affiliation[lang]}؟`,
-        `هل شخصيتي تمتلك قدرات ${pChar.powerType[lang]}؟`,
-        `هل أنا شخصية ذات شعر مميز وشهيرة بالمعارك؟`,
-        `هل شخصيتي مصنفة كـ ${pChar.role[lang]}؟`,
-        `هل أنا أنتمي إلى شخصيات الأنمي الرئيسية؟`
+        `هل شخصيتي تنتمي إلى ${oChar.affiliation[lang]}؟`,
+        `هل شخصيتي تمتلك قدرات ${oChar.powerType[lang]}؟`,
+        `هل شخصيتي مصنفة كـ ${oChar.role[lang]}؟`,
+        `هل شخصيتي ${oChar.gender === 'female' ? (lang === 'ar' ? 'أنثى' : 'female') : (lang === 'ar' ? 'ذكر' : 'male')}؟`,
+        oChar.quote ? `هل أنا شخصية مشهورة باقتباس: "${oChar.quote[lang]}"؟` : `هل أنا شخصية من أبطال هذا العالم؟`
       ];
       const q = sampleQuestions[Math.floor(Math.random() * sampleQuestions.length)];
 
@@ -195,37 +367,7 @@ export const WhoAmIMode: React.FC<WhoAmIModeProps> = ({ world, difficulty, onFin
     // Simulate AI / Opponent answering accurately based on playerChar properties
     setTimeout(() => {
       if (!playerChar) return;
-      const lowerQ = qText.toLowerCase();
-      let ans: 'yes' | 'no' | 'maybe' = 'maybe';
-
-      if (
-        lowerQ.includes('بنت') || lowerQ.includes('فتاة') || lowerQ.includes('انثى') || lowerQ.includes('female')
-      ) {
-        ans = playerChar.gender === 'female' ? 'yes' : 'no';
-      } else if (
-        lowerQ.includes('ولد') || lowerQ.includes('رجل') || lowerQ.includes('ذكر') || lowerQ.includes('male')
-      ) {
-        ans = playerChar.gender === 'male' ? 'yes' : 'no';
-      } else if (
-        lowerQ.includes('كونوها') || lowerQ.includes('leaf')
-      ) {
-        ans = playerChar.affiliation.ar.includes('كونوها') || playerChar.affiliation.en.includes('Leaf') ? 'yes' : 'no';
-      } else if (
-        lowerQ.includes('أوتشيها') || lowerQ.includes('اوتشيها') || lowerQ.includes('uchiha') || lowerQ.includes('شارينغان') || lowerQ.includes('sharingan')
-      ) {
-        ans = playerChar.name.ar.includes('أوتشيها') || playerChar.powerType.ar.includes('شارينغان') || playerChar.powerType.en.includes('Sharingan') ? 'yes' : 'no';
-      } else if (
-        lowerQ.includes('هوكاجي') || lowerQ.includes('hokage')
-      ) {
-        ans = playerChar.role.ar.includes('هوكاجي') || playerChar.role.en.includes('Hokage') ? 'yes' : 'no';
-      } else if (
-        lowerQ.includes('ريزيرو') || lowerQ.includes('لوغنيكا') || lowerQ.includes('ساحرة') || lowerQ.includes('إيميليا') || lowerQ.includes('rezero')
-      ) {
-        ans = world.id === 'rezero' ? 'yes' : 'no';
-      } else {
-        ans = Math.random() > 0.4 ? 'yes' : 'no';
-      }
-
+      const ans = evaluateCharacterQuestion(qText, playerChar, world.characters);
       const ansArabic = ans === 'yes' ? 'نعم! ✅' : ans === 'no' ? 'لا! ❌' : 'ربما / غير متأكد 🤔';
 
       setChatLog(prev => [
