@@ -245,32 +245,49 @@ export async function sendPlayerHeartbeatAndScore(
   const cleanCode = roomCode.trim().toUpperCase();
 
   try {
+    // Use atomic partial update to avoid race conditions between host and guest.
+    // Each player only writes their own fields using Supabase's jsonb concatenation operator.
+    const now = new Date().toISOString();
+    
+    const partialState = isHost
+      ? { host_score: score, host_round: round, host_last_active: now }
+      : { guest_score: score, guest_round: round, guest_last_active: now };
+
+    // First get the room id
     const { data: room } = await supabase
       .from('game_rooms')
-      .select('id, game_state, status')
+      .select('id, status')
       .eq('room_code', cleanCode)
       .maybeSingle();
 
     if (!room || room.status === 'finished') return;
 
-    const now = new Date().toISOString();
-    const updatedState = { ...room.game_state };
+    // Use rpc to atomically merge partial JSON into game_state
+    // Fallback: if rpc not available, do a targeted update
+    const { error } = await supabase.rpc('merge_game_state', {
+      p_room_id: room.id,
+      p_partial_state: partialState
+    });
 
-    if (isHost) {
-      updatedState.host_score = score;
-      updatedState.host_round = round;
-      updatedState.host_last_active = now;
-    } else {
-      updatedState.guest_score = score;
-      updatedState.guest_round = round;
-      updatedState.guest_last_active = now;
+    // If RPC doesn't exist, fallback to read-then-write (less safe but still works)
+    if (error) {
+      const { data: fullRoom } = await supabase
+        .from('game_rooms')
+        .select('id, game_state')
+        .eq('id', room.id)
+        .maybeSingle();
+
+      if (!fullRoom) return;
+
+      const updatedState = { ...fullRoom.game_state, ...partialState };
+      await supabase
+        .from('game_rooms')
+        .update({ game_state: updatedState })
+        .eq('id', room.id);
     }
-
-    await supabase
-      .from('game_rooms')
-      .update({ game_state: updatedState })
-      .eq('id', room.id);
-  } catch (_) {}
+  } catch (e) {
+    console.warn('Heartbeat sync warning:', e);
+  }
 }
 
 /**

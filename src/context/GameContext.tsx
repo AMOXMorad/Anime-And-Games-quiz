@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { World, GameModeType, Difficulty, Profile, MatchRecord, SuperRoundResult } from '../types';
 import { getAllWorlds, getWorldById, ChaosFilter } from '../data/worlds';
 import { useAuth } from './AuthContext';
@@ -300,6 +300,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [opponentScore, setOpponentScore] = useState<number>(0);
   const [superRoundsResults, setSuperRoundsResults] = useState<SuperRoundResult[]>([]);
 
+  // Ref to store room subscription cleanup - prevents memory leaks
+  const roomUnsubscribeRef = useRef<(() => void) | null>(null);
+
   // Check on load if an active room exists in localStorage for reconnection
   useEffect(() => {
     const savedRoom = localStorage.getItem('ag_utopia_active_room_code');
@@ -404,6 +407,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           // Realtime listener: when guest joins, automatically start game for Host!
+          // Clean up any previous subscription first
+          if (roomUnsubscribeRef.current) {
+            roomUnsubscribeRef.current();
+            roomUnsubscribeRef.current = null;
+          }
           const unsubscribe = subscribeToRoomUpdates(res.roomCode, (updatedRoom) => {
             if (updatedRoom.status === 'active' && updatedRoom.guest_id) {
               setOpponentProfile(updatedRoom.game_state.guest_profile);
@@ -413,9 +421,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setPlayerScore(0);
               setOpponentScore(0);
               sounds.playMatchFound();
+              // Clean up this subscription
               unsubscribe();
+              roomUnsubscribeRef.current = null;
             }
           });
+          // Store ref for cleanup on cancel/exit
+          roomUnsubscribeRef.current = unsubscribe;
         }
       });
     }
@@ -459,6 +471,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOpponentScore(0);
     sounds.playMatchFound();
 
+    // ★ CRITICAL: Subscribe to room updates so guest receives real-time sync from host
+    if (roomUnsubscribeRef.current) {
+      roomUnsubscribeRef.current();
+      roomUnsubscribeRef.current = null;
+    }
+    const unsubscribe = subscribeToRoomUpdates(upper, (updatedRoom) => {
+      // Sync opponent (host) score and round in real-time
+      if (updatedRoom.game_state) {
+        setOpponentScore(updatedRoom.game_state.host_score || 0);
+        // If room is finished, update accordingly
+        if (updatedRoom.status === 'finished') {
+          unsubscribe();
+          roomUnsubscribeRef.current = null;
+        }
+      }
+    });
+    roomUnsubscribeRef.current = unsubscribe;
+
     return { success: true, message: 'تم الانضمام للغرفة بنجاح!' };
   };
 
@@ -485,6 +515,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSuperRoomCode(null);
     localStorage.removeItem('ag_utopia_active_room_code');
     setSavedActiveRoomCode(null);
+    // Clean up any active room subscription to prevent ghost matches
+    if (roomUnsubscribeRef.current) {
+      roomUnsubscribeRef.current();
+      roomUnsubscribeRef.current = null;
+    }
     sounds.playClick();
   };
 
@@ -565,6 +600,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSuperRoomCode(null);
     localStorage.removeItem('ag_utopia_active_room_code');
     setSavedActiveRoomCode(null);
+    // Clean up any active room subscription
+    if (roomUnsubscribeRef.current) {
+      roomUnsubscribeRef.current();
+      roomUnsubscribeRef.current = null;
+    }
     sounds.playClick();
   };
 

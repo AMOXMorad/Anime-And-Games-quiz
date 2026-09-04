@@ -1,5 +1,6 @@
 import { World } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { realtimeService } from './realtimeService';
 
 const DB_NAME = 'AG_UTOPIA_DB';
 const DB_VERSION = 1;
@@ -330,9 +331,11 @@ export async function saveCustomWorldToDb(world: World): Promise<void> {
     }
   }
 
-  // 4. Trigger local UI update
+  // 4. Trigger local UI update + broadcast to all connected users
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+    // Broadcast to all other connected clients in real-time
+    try { realtimeService.broadcastWorldChange('created', worldToSave.id); } catch (_) {}
   }
 }
 
@@ -365,9 +368,10 @@ export async function deleteCustomWorldFromDb(worldId: string): Promise<void> {
     }
   }
 
-  // 3. Trigger local UI update
+  // 3. Trigger local UI update + broadcast to all connected users
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+    try { realtimeService.broadcastWorldChange('deleted', worldId); } catch (_) {}
   }
 }
 

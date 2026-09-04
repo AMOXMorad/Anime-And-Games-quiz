@@ -64,8 +64,13 @@ const MainAppContent: React.FC = () => {
     const handleWorldsUpdate = () => {
       setWorldsList(getAllWorlds());
     };
+    // Listen for local updates AND realtime updates from other users/admin
     window.addEventListener('ag_utopia_worlds_updated', handleWorldsUpdate);
-    return () => window.removeEventListener('ag_utopia_worlds_updated', handleWorldsUpdate);
+    window.addEventListener('ag_realtime_world_changed', handleWorldsUpdate);
+    return () => {
+      window.removeEventListener('ag_utopia_worlds_updated', handleWorldsUpdate);
+      window.removeEventListener('ag_realtime_world_changed', handleWorldsUpdate);
+    };
   }, []);
 
   // Modals state

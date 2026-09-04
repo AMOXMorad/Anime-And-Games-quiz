@@ -39,6 +39,8 @@ export let supabase: SupabaseClient = createClient(SUPABASE_URL, getSupabaseAnon
 export function setCustomSupabaseKey(newKey: string): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem('ag_utopia_supabase_anon_key', newKey.trim());
+    // Clean up all existing realtime channels before replacing the client
+    try { supabase.removeAllChannels(); } catch (_) {}
     supabase = createClient(SUPABASE_URL, newKey.trim(), {
       auth: {
         persistSession: true,
@@ -51,6 +53,8 @@ export function setCustomSupabaseKey(newKey: string): void {
       },
     });
     window.dispatchEvent(new Event('ag_utopia_supabase_key_updated'));
+    // Signal realtimeService to re-initialize with the new client
+    window.dispatchEvent(new Event('ag_utopia_realtime_reinit'));
   }
 }
 

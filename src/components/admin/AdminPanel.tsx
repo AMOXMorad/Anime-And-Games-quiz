@@ -50,6 +50,7 @@ import { WorldBuilderPanel } from './WorldBuilderPanel';
 import { NotificationBroadcaster } from './NotificationBroadcaster';
 import { RealtimeDashboardPanel } from './RealtimeDashboardPanel';
 import { ReportsManagementPanel } from './ReportsManagementPanel';
+import { realtimeService } from '../../lib/realtimeService';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -223,11 +224,13 @@ export const AdminPanel: React.FC = () => {
   const [giftMsgEn, setGiftMsgEn] = useState<string>('Congratulations! As a token of appreciation for your achievements, enjoy this exclusive gift.');
   const [giftFeedback, setGiftFeedback] = useState<string | null>(null);
 
-  // Save Store Items to LocalStorage and notify all components
+  // Save Store Items to LocalStorage and notify all components + broadcast to all users
   const saveStoreItems = (items: StoreItem[]) => {
     setStoreItems(items);
     localStorage.setItem('ag_utopia_custom_store_items', JSON.stringify(items));
     window.dispatchEvent(new CustomEvent('ag_store_updated', { detail: items }));
+    // Broadcast to all connected clients in real-time
+    try { realtimeService.broadcastStoreChange('updated'); } catch (_) {}
   };
 
   // Save Promo Codes to LocalStorage

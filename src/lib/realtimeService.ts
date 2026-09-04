@@ -19,6 +19,8 @@ class RealtimeService {
   private lastEventAt: string | null = null;
   private meshChannel: BroadcastChannel | null = null;
   private isInitialized = false;
+  private dbChannelRef: ReturnType<typeof supabase.channel> | null = null;
+  private broadcastChannelRef: ReturnType<typeof supabase.channel> | null = null;
 
   private constructor() {
     try {
@@ -31,6 +33,14 @@ class RealtimeService {
     } catch (e) {
       console.warn('Local BroadcastChannel unavailable:', e);
     }
+
+    // Listen for reinit signal (e.g. when Supabase key changes)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('ag_utopia_realtime_reinit', () => {
+        this.destroy();
+        this.init();
+      });
+    }
   }
 
   public static getInstance(): RealtimeService {
@@ -38,6 +48,26 @@ class RealtimeService {
       RealtimeService.instance = new RealtimeService();
     }
     return RealtimeService.instance;
+  }
+
+  /**
+   * Clean up all channels and reset state
+   */
+  public destroy() {
+    try {
+      if (this.dbChannelRef) {
+        supabase.removeChannel(this.dbChannelRef);
+        this.dbChannelRef = null;
+      }
+      if (this.broadcastChannelRef) {
+        supabase.removeChannel(this.broadcastChannelRef);
+        this.broadcastChannelRef = null;
+      }
+    } catch (e) {
+      console.warn('Error cleaning up realtime channels:', e);
+    }
+    this.isInitialized = false;
+    this.state = 'connecting';
   }
 
   public init() {
@@ -52,6 +82,7 @@ class RealtimeService {
           presence: { key: 'user' }
         }
       });
+      this.dbChannelRef = dbChannel;
 
       // Notifications live stream
       dbChannel.on(
@@ -103,6 +134,17 @@ class RealtimeService {
         }
       );
 
+      // ★ Custom Worlds live stream (NEW - fixes admin world creation not broadcasting)
+      dbChannel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'custom_worlds' },
+        (payload) => {
+          this.recordEventReceived();
+          window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+          window.dispatchEvent(new CustomEvent('ag_realtime_world_changed', { detail: payload }));
+        }
+      );
+
       // Subscribe and manage connection lifecycle
       dbChannel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -116,10 +158,26 @@ class RealtimeService {
 
       // 2. Subscribe to Global Broadcast Channel (Instant WebSockets)
       const broadcastChannel = supabase.channel('utopia_live_broadcast');
+      this.broadcastChannelRef = broadcastChannel;
+
       broadcastChannel
         .on('broadcast', { event: 'admin_broadcast' }, (payload) => {
           this.recordEventReceived();
           window.dispatchEvent(new CustomEvent('ag_realtime_notification', { detail: payload }));
+        })
+        .on('broadcast', { event: 'world_created' }, (payload) => {
+          this.recordEventReceived();
+          window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+          window.dispatchEvent(new CustomEvent('ag_realtime_world_changed', { detail: payload }));
+        })
+        .on('broadcast', { event: 'world_deleted' }, (payload) => {
+          this.recordEventReceived();
+          window.dispatchEvent(new Event('ag_utopia_worlds_updated'));
+          window.dispatchEvent(new CustomEvent('ag_realtime_world_changed', { detail: payload }));
+        })
+        .on('broadcast', { event: 'store_changed' }, (payload) => {
+          this.recordEventReceived();
+          window.dispatchEvent(new CustomEvent('ag_store_updated', { detail: payload }));
         })
         .on('broadcast', { event: 'ping_test' }, (payload) => {
           if (payload.payload?.sentAt) {
@@ -160,6 +218,20 @@ class RealtimeService {
     window.dispatchEvent(new CustomEvent(`ag_realtime_${type}`, { detail: data }));
   }
 
+  /**
+   * Broadcast a world creation/update to all connected clients
+   */
+  public broadcastWorldChange(action: 'created' | 'deleted', worldId: string) {
+    this.broadcast(action === 'created' ? 'world_created' : 'world_deleted', { worldId, action, timestamp: Date.now() });
+  }
+
+  /**
+   * Broadcast a store change to all connected clients
+   */
+  public broadcastStoreChange(action: 'added' | 'removed' | 'updated', itemId?: string) {
+    this.broadcast('store_changed', { action, itemId, timestamp: Date.now() });
+  }
+
   private handleIncomingMeshEvent(msg: { type: string; data: any; timestamp: number }) {
     this.recordEventReceived();
     window.dispatchEvent(new CustomEvent(`ag_realtime_${msg.type}`, { detail: msg.data }));
@@ -183,7 +255,7 @@ class RealtimeService {
       isRealtimeEnabled: true,
       latencyMs: this.latencyMs,
       lastEventAt: this.lastEventAt,
-      activeChannelsCount: 2
+      activeChannelsCount: (this.dbChannelRef ? 1 : 0) + (this.broadcastChannelRef ? 1 : 0)
     };
   }
 
