@@ -404,6 +404,8 @@ export async function clearAllCustomWorldsStorage(): Promise<void> {
 // Listen to custom key updates
 if (typeof window !== 'undefined') {
   window.addEventListener('ag_utopia_supabase_key_updated', () => {
+    // Reset flag so the new client can re-subscribe to custom_worlds table
+    realtimeChannelSubscribed = false;
     syncFromSupabaseCloud().catch(console.warn);
     setupSupabaseRealtimeSync();
   });

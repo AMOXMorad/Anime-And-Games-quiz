@@ -8,9 +8,45 @@ import {
   createMultiplayerRoom, 
   joinMultiplayerRoom, 
   subscribeToRoomUpdates, 
+  getRoomByCode,
+  findRandomMatch,
+  subscribeToQueueEntry,
+  leaveMatchmakingQueue,
   SynchronizedRoomQuestions, 
   MultiplayerRoom 
 } from '../lib/multiplayerRoom';
+import { syncFromSupabaseCloud } from '../lib/indexedDbStorage';
+
+// Reads/writes the room code that should appear in the URL for the live
+// confrontation page, e.g. /duel/NARUTO-4821. No react-router in this project,
+// so this is done manually with the History API.
+const DUEL_URL_PREFIX = '/duel/';
+
+function pushDuelUrl(code: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.history.replaceState(null, '', `${DUEL_URL_PREFIX}${code}`);
+  } catch (_) {}
+}
+
+function clearDuelUrl() {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.location.pathname.startsWith(DUEL_URL_PREFIX)) {
+      window.history.replaceState(null, '', '/');
+    }
+  } catch (_) {}
+}
+
+function getDuelCodeFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const path = window.location.pathname;
+  if (path.startsWith(DUEL_URL_PREFIX)) {
+    const code = path.slice(DUEL_URL_PREFIX.length).trim();
+    return code || null;
+  }
+  return null;
+}
 
 export type MatchType = 'solo' | 'random' | 'private';
 
@@ -302,14 +338,108 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Ref to store room subscription cleanup - prevents memory leaks
   const roomUnsubscribeRef = useRef<(() => void) | null>(null);
+  // Ref for my own matchmaking_queue row while waiting for a random opponent
+  const queueCleanupRef = useRef<{ unsubscribe: () => void; checkNow: () => Promise<void> } | null>(null);
+  const queueIdRef = useRef<string | null>(null);
+  // Generic polling safety net (every 3s) in case a realtime channel silently
+  // fails to deliver an update (e.g. guest joined but host never got notified)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Check on load if an active room exists in localStorage for reconnection
+  const clearPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  };
+
+  const clearQueueWatch = () => {
+    if (queueCleanupRef.current) {
+      queueCleanupRef.current.unsubscribe();
+      queueCleanupRef.current = null;
+    }
+    queueIdRef.current = null;
+  };
+
+  // Check on load if an active room exists (from the URL, e.g. /duel/CODE after a
+  // refresh, or from localStorage) so we can restore the live match instead of
+  // dropping the player back to the home screen.
   useEffect(() => {
-    const savedRoom = localStorage.getItem('ag_utopia_active_room_code');
-    if (savedRoom) {
-      setSavedActiveRoomCode(savedRoom);
+    const urlCode = getDuelCodeFromUrl();
+    const storedCode = localStorage.getItem('ag_utopia_active_room_code');
+    const candidate = urlCode || storedCode;
+
+    if (candidate) {
+      setSavedActiveRoomCode(candidate);
+      // Keep localStorage and the URL in sync with whichever one we trust
+      localStorage.setItem('ag_utopia_active_room_code', candidate);
+      if (urlCode) pushDuelUrl(urlCode);
     }
   }, []);
+
+  // Once we know who the logged-in player is AND we have a candidate room code,
+  // automatically try to restore the match (covers the page-refresh case).
+  useEffect(() => {
+    if (!profile || !savedActiveRoomCode || isPlaying) return;
+    restoreRoomState(savedActiveRoomCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, savedActiveRoomCode]);
+
+  /**
+   * Fetches the real, current state of a room by code and restores it fully:
+   * correct opponent, correct role (host/guest), the actual synchronized
+   * questions, and the actual scores/rounds already reached — instead of
+   * fabricating a random opponent from scratch.
+   */
+  const restoreRoomState = async (code: string) => {
+    const room = await getRoomByCode(code);
+
+    if (!room || room.status === 'finished') {
+      // The match is over or the room no longer exists — nothing to restore
+      localStorage.removeItem('ag_utopia_active_room_code');
+      setSavedActiveRoomCode(null);
+      clearDuelUrl();
+      return false;
+    }
+
+    const amHost = !!profile && room.host_id === profile.id;
+    let w = getWorldById(room.world_id, chaosFilter);
+    if (!w) {
+      // World might not be synced locally yet (e.g. a freshly loaded tab) — force a sync and retry once
+      await syncFromSupabaseCloud().catch(() => {});
+      w = getWorldById(room.world_id, chaosFilter) || getAllWorlds()[0] || null;
+    }
+    if (w) setSelectedWorld(w);
+
+    setIsHost(amHost);
+    setMatchType(room.guest_id ? 'private' : 'random');
+    setSelectedMode('super_challenge');
+    setSelectedDifficulty(room.difficulty);
+    setOpponentProfile(amHost ? room.game_state.guest_profile : room.game_state.host_profile);
+    setSynchronizedQuestions(room.game_state.questions);
+    setPlayerScore(amHost ? room.game_state.host_score : room.game_state.guest_score);
+    setOpponentScore(amHost ? room.game_state.guest_score : room.game_state.host_score);
+    setActiveSuperRound(amHost ? room.game_state.host_round : room.game_state.guest_round);
+    setSuperRoomCode(code.toUpperCase());
+    setIsPlaying(true);
+    pushDuelUrl(code.toUpperCase());
+
+    if (roomUnsubscribeRef.current) {
+      roomUnsubscribeRef.current();
+      roomUnsubscribeRef.current = null;
+    }
+    const unsubscribe = subscribeToRoomUpdates(code, (updatedRoom) => {
+      if (!updatedRoom.game_state) return;
+      setOpponentScore(amHost ? updatedRoom.game_state.guest_score : updatedRoom.game_state.host_score);
+      if (updatedRoom.status === 'finished') {
+        unsubscribe();
+        roomUnsubscribeRef.current = null;
+      }
+    });
+    roomUnsubscribeRef.current = unsubscribe;
+
+    sounds.playVictory();
+    return true;
+  };
 
   const selectWorld = (worldId: string) => {
     const w = getWorldById(worldId, chaosFilter);
@@ -352,7 +482,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const startMatchmaking = (worldId: string, mode: GameModeType, diff: Difficulty) => {
     const w = getWorldById(worldId, chaosFilter);
-    if (w) setSelectedWorld(w);
+    if (!w || !profile) {
+      sounds.playWrong();
+      return;
+    }
+
+    setSelectedWorld(w);
     setSelectedMode(mode);
     setSelectedDifficulty(diff);
     setMatchType('random');
@@ -360,23 +495,65 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSuperRoomCode(null);
     sounds.playClick();
 
-    setTimeout(() => {
-      // Pick a safe, distinct opponent guaranteed not to be oneself
-      const matchedOpponent = getSafeRandomOpponent(worldId, profile);
-      setOpponentProfile(matchedOpponent);
+    clearQueueWatch();
+    clearPolling();
+
+    const onMatched = async (roomCode: string) => {
+      clearQueueWatch();
+      clearPolling();
+      const room = await getRoomByCode(roomCode);
+      if (!room) {
+        setIsSuperMatchmaking(false);
+        sounds.playWrong();
+        return;
+      }
+      const amHost = room.host_id === profile.id;
+      setIsHost(amHost);
+      setOpponentProfile(amHost ? room.game_state.guest_profile : room.game_state.host_profile);
+      setSynchronizedQuestions(room.game_state.questions);
+      setSuperRoomCode(roomCode);
+      localStorage.setItem('ag_utopia_active_room_code', roomCode);
+      setSavedActiveRoomCode(roomCode);
+      pushDuelUrl(roomCode);
       setIsSuperMatchmaking(false);
       setIsPlaying(true);
       setActiveSuperRound(1);
       setPlayerScore(0);
       setOpponentScore(0);
-      setSuperRoomCode(null);
-      setSynchronizedQuestions(null);
-
-      localStorage.removeItem('ag_utopia_active_room_code');
-      setSavedActiveRoomCode(null);
-
       sounds.playMatchFound();
-    }, 2000);
+
+      if (roomUnsubscribeRef.current) {
+        roomUnsubscribeRef.current();
+        roomUnsubscribeRef.current = null;
+      }
+      const unsubscribe = subscribeToRoomUpdates(roomCode, (updatedRoom) => {
+        if (!updatedRoom.game_state) return;
+        setOpponentScore(amHost ? updatedRoom.game_state.guest_score : updatedRoom.game_state.host_score);
+        if (updatedRoom.status === 'finished') {
+          unsubscribe();
+          roomUnsubscribeRef.current = null;
+        }
+      });
+      roomUnsubscribeRef.current = unsubscribe;
+    };
+
+    findRandomMatch(w, mode, diff, profile).then(result => {
+      if (result.status === 'matched') {
+        onMatched(result.roomCode);
+      } else if (result.status === 'waiting') {
+        queueIdRef.current = result.queueId;
+        const watch = subscribeToQueueEntry(result.queueId, onMatched);
+        queueCleanupRef.current = watch;
+        // Safety net: some environments silently drop realtime events —
+        // poll our own queue row every 3s in case that happens.
+        pollIntervalRef.current = setInterval(() => {
+          watch.checkNow();
+        }, 3000);
+      } else {
+        setIsSuperMatchmaking(false);
+        sounds.playWrong();
+      }
+    });
   };
 
   const startSuperMatchmaking = (worldId: string, diff: Difficulty) => {
@@ -412,15 +589,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             roomUnsubscribeRef.current();
             roomUnsubscribeRef.current = null;
           }
+          clearPolling();
+
+          const activateForHost = (updatedRoom: MultiplayerRoom) => {
+            setOpponentProfile(updatedRoom.game_state.guest_profile);
+            setSynchronizedQuestions(updatedRoom.game_state.questions);
+            setIsPlaying(true);
+            setActiveSuperRound(1);
+            setPlayerScore(0);
+            setOpponentScore(0);
+            pushDuelUrl(res.roomCode);
+            sounds.playMatchFound();
+          };
+
           const unsubscribe = subscribeToRoomUpdates(res.roomCode, (updatedRoom) => {
             if (updatedRoom.status === 'active' && updatedRoom.guest_id) {
-              setOpponentProfile(updatedRoom.game_state.guest_profile);
-              setSynchronizedQuestions(updatedRoom.game_state.questions);
-              setIsPlaying(true);
-              setActiveSuperRound(1);
-              setPlayerScore(0);
-              setOpponentScore(0);
-              sounds.playMatchFound();
+              clearPolling();
+              activateForHost(updatedRoom);
               // Clean up this subscription
               unsubscribe();
               roomUnsubscribeRef.current = null;
@@ -428,6 +613,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           // Store ref for cleanup on cancel/exit
           roomUnsubscribeRef.current = unsubscribe;
+
+          // Safety net: if the guest joins but the realtime event never reaches
+          // the host (channel silently failed to subscribe), poll the room
+          // directly every 3s while we're still waiting.
+          pollIntervalRef.current = setInterval(async () => {
+            const latest = await getRoomByCode(res.roomCode);
+            if (latest && latest.status === 'active' && latest.guest_id) {
+              clearPolling();
+              activateForHost(latest);
+              if (roomUnsubscribeRef.current) {
+                roomUnsubscribeRef.current();
+                roomUnsubscribeRef.current = null;
+              }
+            }
+          }, 3000);
         }
       });
     }
@@ -452,14 +652,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const room = res.room;
+
+    let w = getWorldById(room.world_id, chaosFilter);
+    if (!w) {
+      // World not loaded locally yet (fresh tab / custom world still syncing) — force a sync and retry
+      await syncFromSupabaseCloud().catch(() => {});
+      w = getWorldById(room.world_id, chaosFilter);
+    }
+    if (!w) {
+      w = getAllWorlds()[0];
+      if (!w) {
+        return { success: false, message: 'تعذر تحميل بيانات العالم لهذه المباراة، حاول مرة أخرى بعد قليل.' };
+      }
+    }
+
     setSuperRoomCode(upper);
     localStorage.setItem('ag_utopia_active_room_code', upper);
     setSavedActiveRoomCode(upper);
     setIsHost(false);
     setMatchType('private');
+    pushDuelUrl(upper);
 
-    const w = getWorldById(room.world_id, chaosFilter) || getAllWorlds()[0];
-    if (w) setSelectedWorld(w);
+    setSelectedWorld(w);
     setSelectedMode('super_challenge');
     setSelectedDifficulty(room.difficulty);
 
@@ -493,20 +707,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const reconnectToActiveRoom = (): boolean => {
-    const activeCode = localStorage.getItem('ag_utopia_active_room_code');
+    const activeCode = localStorage.getItem('ag_utopia_active_room_code') || getDuelCodeFromUrl();
     if (!activeCode) return false;
 
-    setSuperRoomCode(activeCode);
-    setIsPlaying(true);
-    setSelectedMode('super_challenge');
-    setMatchType('private');
-    if (!selectedWorld) {
-      setSelectedWorld(getAllWorlds()[0] || null);
-    }
-    if (!opponentProfile) {
-      setOpponentProfile(getSafeRandomOpponent(selectedWorld?.id || 'default', profile));
-    }
-    sounds.playVictory();
+    // Kick off the real restore in the background (accurate opponent, score,
+    // round and questions straight from the database) instead of guessing.
+    restoreRoomState(activeCode);
     return true;
   };
 
@@ -520,6 +726,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       roomUnsubscribeRef.current();
       roomUnsubscribeRef.current = null;
     }
+    clearPolling();
+    if (queueIdRef.current) {
+      leaveMatchmakingQueue(queueIdRef.current);
+    }
+    clearQueueWatch();
+    clearDuelUrl();
     sounds.playClick();
   };
 
@@ -580,6 +792,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('ag_utopia_match_archives', JSON.stringify(existingRecords.slice(0, 50)));
       localStorage.removeItem('ag_utopia_active_room_code');
       setSavedActiveRoomCode(null);
+      clearDuelUrl();
     } catch (e) {
       console.error(e);
     }
@@ -605,6 +818,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       roomUnsubscribeRef.current();
       roomUnsubscribeRef.current = null;
     }
+    clearPolling();
+    if (queueIdRef.current) {
+      leaveMatchmakingQueue(queueIdRef.current);
+    }
+    clearQueueWatch();
+    clearDuelUrl();
     sounds.playClick();
   };
 

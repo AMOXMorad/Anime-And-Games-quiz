@@ -36,9 +36,26 @@ export const WorldModal: React.FC<WorldModalProps> = ({
   const isLight = theme === 'light';
 
   const [selectedMode, setSelectedMode] = useState<GameModeType>('trivia');
-  const [difficulty, setDifficultyState] = useState<Difficulty>('medium');
+  // Local selection can be a real Difficulty OR the 'random' sentinel.
+  // 'random' is resolved into a real Difficulty at the moment a match starts —
+  // the rest of the app (question filtering, matchmaking queue, etc.) never
+  // sees 'random', only 'easy' | 'medium' | 'hard'.
+  const [difficultySelection, setDifficultySelection] = useState<Difficulty | 'random'>('medium');
 
   if (!isOpen || !world) return null;
+
+  const ALL_DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
+
+  // Resolves the actual difficulty to use for a match right now.
+  const resolveDifficulty = (): Difficulty => {
+    if (difficultySelection === 'random') {
+      return ALL_DIFFICULTIES[Math.floor(Math.random() * ALL_DIFFICULTIES.length)];
+    }
+    return difficultySelection;
+  };
+
+  // Kept for any code below that still reads `difficulty` directly for display purposes.
+  const difficulty = difficultySelection;
 
   const MODES: Array<{ id: GameModeType; titleKey: string; descKey: string; icon: any; color: string; badge?: string }> = [
     {
@@ -77,11 +94,12 @@ export const WorldModal: React.FC<WorldModalProps> = ({
 
   const handleStart = () => {
     sounds.playClick();
+    const finalDifficulty = resolveDifficulty();
     if (selectedMode === 'super_challenge') {
       onClose();
-      openMatchmakingModal(world.id, difficulty);
+      openMatchmakingModal(world.id, finalDifficulty);
     } else {
-      startSoloGame(world, selectedMode, difficulty);
+      startSoloGame(world, selectedMode, finalDifficulty);
       onClose();
     }
   };
@@ -245,12 +263,12 @@ export const WorldModal: React.FC<WorldModalProps> = ({
               <span>{t('difficulty')}</span>
             </h4>
 
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-4 gap-2.5">
               <button
                 type="button"
-                onClick={() => { setDifficultyState('easy'); sounds.playClick(); }}
+                onClick={() => { setDifficultySelection('easy'); sounds.playClick(); }}
                 className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer ${
-                  difficulty === 'easy'
+                  difficultySelection === 'easy'
                     ? isLight
                       ? 'bg-emerald-100 border-2 border-emerald-500 text-emerald-900 font-black shadow-sm'
                       : 'bg-emerald-950/90 border-2 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.35)] font-black'
@@ -264,9 +282,9 @@ export const WorldModal: React.FC<WorldModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => { setDifficultyState('medium'); sounds.playClick(); }}
+                onClick={() => { setDifficultySelection('medium'); sounds.playClick(); }}
                 className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer ${
-                  difficulty === 'medium'
+                  difficultySelection === 'medium'
                     ? isLight
                       ? 'bg-cyan-100 border-2 border-cyan-500 text-cyan-900 font-black shadow-sm'
                       : 'bg-cyan-950/90 border-2 border-cyan-500 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)] font-black'
@@ -280,9 +298,9 @@ export const WorldModal: React.FC<WorldModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => { setDifficultyState('hard'); sounds.playClick(); }}
+                onClick={() => { setDifficultySelection('hard'); sounds.playClick(); }}
                 className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer ${
-                  difficulty === 'hard'
+                  difficultySelection === 'hard'
                     ? isLight
                       ? 'bg-rose-100 border-2 border-rose-500 text-rose-900 font-black shadow-sm'
                       : 'bg-rose-950/90 border-2 border-rose-500 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-black'
@@ -292,6 +310,23 @@ export const WorldModal: React.FC<WorldModalProps> = ({
                 }`}
               >
                 {t('hard')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setDifficultySelection('random'); sounds.playClick(); }}
+                title="سيتم اختيار مستوى صعوبة عشوائي (سهل/متوسط/صعب) لحظة بدء المباراة"
+                className={`py-2.5 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer ${
+                  difficultySelection === 'random'
+                    ? isLight
+                      ? 'bg-purple-100 border-2 border-purple-500 text-purple-900 font-black shadow-sm'
+                      : 'bg-purple-950/90 border-2 border-purple-500 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.35)] font-black'
+                    : isLight
+                    ? 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-white'
+                    : 'bg-black/60 border-slate-800 text-slate-400 hover:text-white hover:bg-black/90'
+                }`}
+              >
+                🎲 عشوائي
               </button>
             </div>
           </div>
@@ -303,7 +338,9 @@ export const WorldModal: React.FC<WorldModalProps> = ({
           isLight ? 'bg-slate-100 border-slate-200' : 'bg-black border-slate-800/80'
         }`}>
           <div className={`text-xs ${isLight ? 'text-slate-600 font-bold' : 'text-slate-400'}`}>
-            مستوى الصعوبة: <span className={`font-black ${isLight ? 'text-cyan-700' : 'text-cyan-300'}`}>{t(difficulty)}</span>
+            مستوى الصعوبة: <span className={`font-black ${isLight ? 'text-cyan-700' : 'text-cyan-300'}`}>
+              {difficultySelection === 'random' ? '🎲 عشوائي (يُحدد عند البدء)' : t(difficultySelection)}
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
@@ -312,7 +349,7 @@ export const WorldModal: React.FC<WorldModalProps> = ({
               type="button"
               onClick={() => {
                 sounds.playClick();
-                startSoloGame(world, selectedMode, difficulty);
+                startSoloGame(world, selectedMode, resolveDifficulty());
                 onClose();
               }}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-2xl transition-all shadow-sm cursor-pointer ${
@@ -332,7 +369,7 @@ export const WorldModal: React.FC<WorldModalProps> = ({
               onClick={() => {
                 sounds.playClick();
                 onClose();
-                openMatchmakingModal(world.id, difficulty, selectedMode);
+                openMatchmakingModal(world.id, resolveDifficulty(), selectedMode);
               }}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-sky-500 hover:from-cyan-500 hover:to-sky-400 text-white font-black text-xs rounded-2xl shadow-[0_4px_16px_rgba(6,182,212,0.4)] transition-all cursor-pointer ring-1 ring-white/20"
               title="مطابقة عشوائية مع لاعبين في نفس العالم"
@@ -347,7 +384,7 @@ export const WorldModal: React.FC<WorldModalProps> = ({
               onClick={() => {
                 sounds.playClick();
                 onClose();
-                openMatchmakingModal(world.id, difficulty, selectedMode);
+                openMatchmakingModal(world.id, resolveDifficulty(), selectedMode);
               }}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-2xl transition-all shadow-sm cursor-pointer ${
                 isLight

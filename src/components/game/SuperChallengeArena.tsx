@@ -6,11 +6,12 @@ import { useI18n } from '../../lib/i18n';
 import { sounds } from '../../lib/sound';
 import { AvatarWithFrame } from '../ui/AvatarWithFrame';
 import { LevelBadge } from '../ui/LevelBadge';
-import { Swords, Timer, Zap, Trophy, Shield, Check, X, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Swords, Timer, Zap, Trophy, Shield, Check, X, ArrowRight, AlertTriangle, LogOut } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { shuffleTriviaOptions } from '../../data/worlds';
 import { normalizeWorld } from '../../lib/indexedDbStorage';
 import { generateQuestionsFromCharacters } from '../../lib/excelWorldHelper';
+import { checkCharacterGuess } from '../../lib/fuzzyMatch';
 import { 
   subscribeToRoomUpdates, 
   sendPlayerHeartbeatAndScore, 
@@ -54,20 +55,30 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
   const [triviaSelected, setTriviaSelected] = useState<number | null>(null);
   const [triviaTimeLeft, setTriviaTimeLeft] = useState<number>(12);
 
-  // Round 3 (Who Am I) state
+  // Round 3 (Who Am I) state — real deduction mode: I see clues about MY OWN
+  // secret character (which my opponent can see, but I can't) and must type
+  // the correct name. 3 attempts total; a wrong guess reveals the next clue.
   const [whoAmIResolved, setWhoAmIResolved] = useState<boolean>(false);
-  const [targetChar, setTargetChar] = useState<any>(null);
+  const [targetChar, setTargetChar] = useState<any>(null); // the character I must guess
+  const [opponentTargetChar, setOpponentTargetChar] = useState<any>(null); // opponent's secret character (shown to me as reference)
+  const [whoAmIAttempts, setWhoAmIAttempts] = useState<number>(0); // wrong guesses used, 0..3
+  const [whoAmIGuessInput, setWhoAmIGuessInput] = useState<string>('');
+  const [whoAmIFeedback, setWhoAmIFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const WHO_AM_I_MAX_ATTEMPTS = 3;
+  const WHO_AM_I_POINTS_BY_ATTEMPT = [400, 250, 150]; // points if solved on attempt 1 / 2 / 3
 
   // Multiplayer Live Sync & 20s Disconnect Watchdog
   const [opponentLastActive, setOpponentLastActive] = useState<string | null>(null);
   const [opponentDisconnectWarning, setOpponentDisconnectWarning] = useState<number | null>(null);
   const [isMatchFinished, setIsMatchFinished] = useState<boolean>(false);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<boolean>(false);
 
   // 1. Initialize Synchronized Question Sequence with Bulletproof Fallbacks
   useEffect(() => {
     let tf: any[] = [];
     let tr: any[] = [];
-    let target: any = null;
+    let hostChar: any = null;
+    let guestChar: any = null;
 
     if (synchronizedQuestions) {
       if (synchronizedQuestions.round1_tf && synchronizedQuestions.round1_tf.length > 0) {
@@ -76,38 +87,51 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
       if (synchronizedQuestions.round2_trivia && synchronizedQuestions.round2_trivia.length > 0) {
         tr = synchronizedQuestions.round2_trivia;
       }
-      if (synchronizedQuestions.round3_char) {
-        target = synchronizedQuestions.round3_char;
+      if ((synchronizedQuestions as any).round3_char_host) {
+        hostChar = (synchronizedQuestions as any).round3_char_host;
+      }
+      if ((synchronizedQuestions as any).round3_char_guest) {
+        guestChar = (synchronizedQuestions as any).round3_char_guest;
+      }
+      // Backward compatibility with older rooms created before this update,
+      // which only stored a single shared round3_char.
+      if (!hostChar && !guestChar && (synchronizedQuestions as any).round3_char) {
+        hostChar = (synchronizedQuestions as any).round3_char;
+        guestChar = (synchronizedQuestions as any).round3_char;
       }
     }
 
     // Pull from normalized world if still empty
+    // Super Challenge spec: Round 1 = 5 True/False questions, Round 2 = 5 general trivia questions.
+    const SUPER_TF_COUNT = 5;
+    const SUPER_TRIVIA_COUNT = 5;
+
     if (tf.length === 0) {
       const tfPool = (normalizedWorld?.trueFalseQuestions && normalizedWorld.trueFalseQuestions.length > 0)
         ? normalizedWorld.trueFalseQuestions
         : [];
-      tf = [...tfPool].sort(() => 0.5 - Math.random()).slice(0, 3);
+      tf = [...tfPool].sort(() => 0.5 - Math.random()).slice(0, SUPER_TF_COUNT);
     }
 
     if (tr.length === 0) {
       const trPool = (normalizedWorld?.triviaQuestions && normalizedWorld.triviaQuestions.length > 0)
         ? normalizedWorld.triviaQuestions
         : [];
-      tr = [...trPool].sort(() => 0.5 - Math.random()).slice(0, 3).map(shuffleTriviaOptions);
+      tr = [...trPool].sort(() => 0.5 - Math.random()).slice(0, SUPER_TRIVIA_COUNT).map(shuffleTriviaOptions);
     }
 
-    if (!target) {
+    if (!hostChar || !guestChar) {
       const charPool = normalizedWorld?.characters || [];
-      if (charPool.length > 0) {
-        target = charPool[Math.floor(Math.random() * charPool.length)];
-      }
+      const shuffled = [...charPool].sort(() => 0.5 - Math.random());
+      if (!hostChar) hostChar = shuffled[0] || null;
+      if (!guestChar) guestChar = (shuffled.length > 1 ? shuffled[1] : shuffled[0]) || null;
     }
 
     // Auto-generate if still empty but characters exist
     if ((tf.length === 0 || tr.length === 0) && (normalizedWorld?.characters?.length || 0) >= 2) {
       const gen = generateQuestionsFromCharacters(normalizedWorld.characters);
-      if (tf.length === 0) tf = gen.trueFalseQuestions.slice(0, 3);
-      if (tr.length === 0) tr = gen.triviaQuestions.slice(0, 3).map(shuffleTriviaOptions);
+      if (tf.length === 0) tf = gen.trueFalseQuestions.slice(0, SUPER_TF_COUNT);
+      if (tr.length === 0) tr = gen.triviaQuestions.slice(0, SUPER_TRIVIA_COUNT).map(shuffleTriviaOptions);
     }
 
     // Emergency fallbacks so game NEVER renders empty
@@ -140,14 +164,21 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
       ];
     }
 
-    if (!target && (normalizedWorld?.characters?.length || 0) > 0) {
-      target = normalizedWorld.characters[0];
+    if (!hostChar && (normalizedWorld?.characters?.length || 0) > 0) {
+      hostChar = normalizedWorld.characters[0];
     }
+    if (!guestChar) {
+      guestChar = hostChar;
+    }
+
+    const myChar = isHost ? hostChar : guestChar;
+    const oppChar = isHost ? guestChar : hostChar;
 
     setTfQuestions(tf);
     setTriviaQuestions(tr);
-    setTargetChar(target);
-  }, [world, normalizedWorld, synchronizedQuestions]);
+    setTargetChar(myChar);
+    setOpponentTargetChar(oppChar);
+  }, [world, normalizedWorld, synchronizedQuestions, isHost]);
 
   // 2. Realtime Multiplayer Room Subscription
   useEffect(() => {
@@ -344,38 +375,94 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
     }
   };
 
-  const handleWhoAmIGuess = (charId: string) => {
-    if (whoAmIResolved || !targetChar) return;
-    setWhoAmIResolved(true);
-    if (charId === targetChar.id) {
+  // Reveals one more clue each time a guess is wrong (1 clue to start, up to 3)
+  const whoAmIClueLevel = Math.min(whoAmIAttempts + 1, WHO_AM_I_MAX_ATTEMPTS);
+
+  const getCharClue = (char: any, level: number): string => {
+    if (!char) return '';
+    const levels = ['easy', 'medium', 'hard'];
+    const key = levels[Math.min(level - 1, levels.length - 1)];
+    const clue = char.clues?.[key]?.[0];
+    if (clue && clue[lang]) return clue[lang];
+    // Fallback: any available clue level
+    for (const k of levels) {
+      const c = char.clues?.[k]?.[0];
+      if (c && c[lang]) return c[lang];
+    }
+    return lang === 'ar' ? 'لا يوجد تلميح متاح لهذه الشخصية.' : 'No clue available for this character.';
+  };
+
+  const handleWhoAmISubmitGuess = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (whoAmIResolved || !targetChar || !whoAmIGuessInput.trim()) return;
+
+    const isCorrect = checkCharacterGuess(whoAmIGuessInput, {
+      ar: targetChar.name?.ar || '',
+      en: targetChar.name?.en || ''
+    });
+
+    if (isCorrect) {
       sounds.playVictory();
+      confetti({ particleCount: 80, spread: 70 });
+      const pts = WHO_AM_I_POINTS_BY_ATTEMPT[whoAmIAttempts] ?? 100;
+      setWhoAmIFeedback('correct');
+      setWhoAmIResolved(true);
       setPlayerScore(prev => {
-        const nextScore = prev + 300;
-        if (superRoomCode) {
-          sendPlayerHeartbeatAndScore(superRoomCode, isHost, nextScore, 3);
-        }
+        const nextScore = prev + pts;
+        if (superRoomCode) sendPlayerHeartbeatAndScore(superRoomCode, isHost, nextScore, 3);
         return nextScore;
       });
     } else {
       sounds.playWrong();
-      setPlayerScore(prev => {
-        const nextScore = prev + 50;
-        if (superRoomCode) {
-          sendPlayerHeartbeatAndScore(superRoomCode, isHost, nextScore, 3);
-        }
-        return nextScore;
-      });
+      setWhoAmIFeedback('wrong');
+      const nextAttempts = whoAmIAttempts + 1;
+      setWhoAmIAttempts(nextAttempts);
+      setWhoAmIGuessInput('');
+      if (nextAttempts >= WHO_AM_I_MAX_ATTEMPTS) {
+        // Out of attempts — round ends with no points for this round
+        setWhoAmIResolved(true);
+        if (superRoomCode) sendPlayerHeartbeatAndScore(superRoomCode, isHost, playerScore, 3);
+      }
     }
+
+    // Opponent score simulation only if offline/solo (no real room)
     if (!superRoomCode) {
       setOpponentScore(prev => prev + (Math.random() > 0.4 ? 280 : 80));
     }
   };
 
+  // Withdrawal = explicit LOSS for the player who withdraws
+  const handleWithdraw = () => {
+    setIsMatchFinished(true);
+    setShowWithdrawConfirm(false);
+    sounds.playWrong();
+    
+    if (superRoomCode) {
+      closeAndArchiveRoom(
+        superRoomCode,
+        opponent.id,
+        opponent.username,
+        `انسحب ${profile?.username || 'اللاعب'} من المباراة (خسارة بالانسحاب)`,
+        isHost ? 0 : opponentScore,
+        isHost ? opponentScore : 0
+      );
+    }
+    // Pass 0 as player score and a high opponent score to guarantee loss
+    onComplete(0, opponentScore + 999);
+  };
+
   const handleFinalFinish = () => {
     setIsMatchFinished(true);
-    sounds.playVictory();
+    const isPlayerWinner = playerScore >= opponentScore;
+    
+    // Play correct sound based on actual result
+    if (isPlayerWinner) {
+      sounds.playVictory();
+    } else {
+      sounds.playWrong();
+    }
+    
     if (superRoomCode) {
-      const isPlayerWinner = playerScore >= opponentScore;
       closeAndArchiveRoom(
         superRoomCode,
         isPlayerWinner ? (profile?.id || 'player') : opponent.id,
@@ -410,6 +497,40 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold shadow-md">
             <span>كود الغرفة المتزامنة:</span>
             <span className="text-white font-black">{superRoomCode}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw Button + Confirmation */}
+      {!isMatchFinished && (
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => setShowWithdrawConfirm(true)}
+            className="px-3 py-1.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1.5 hover:bg-rose-900 transition-all"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>انسحاب</span>
+          </button>
+        </div>
+      )}
+
+      {showWithdrawConfirm && (
+        <div className="bg-rose-950/95 border border-rose-500 rounded-2xl p-5 mb-4 shadow-2xl animate-fadeIn">
+          <h4 className="text-base font-black text-white mb-2">⚠️ هل تريد الانسحاب من المباراة؟</h4>
+          <p className="text-xs text-rose-200 mb-4">الانسحاب يعتبر خسارة تلقائية ويمنح الفوز للمنافس فوراً.</p>
+          <div className="flex gap-3">
+            <button
+              onClick={handleWithdraw}
+              className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 transition-all"
+            >
+              نعم، أنسحب (خسارة)
+            </button>
+            <button
+              onClick={() => setShowWithdrawConfirm(false)}
+              className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition-all border border-slate-700"
+            >
+              لا، استمر في المباراة
+            </button>
           </div>
         </div>
       )}
@@ -604,32 +725,79 @@ export const SuperChallengeArena: React.FC<SuperChallengeArenaProps> = ({
         </div>
       )}
 
-      {/* ROUND 3: Who Am I Showdown */}
+      {/* ROUND 3: Who Am I Showdown — I must guess MY OWN secret character by name */}
       {currentRound === 3 && targetChar && (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-6">
-            <span className="text-xs font-bold text-amber-400">الجولة الحاسمة: خمن الشخصية بأسرع وقت!</span>
-            <h3 className="text-xl font-black text-white mt-1">تلميح ذهبي: "{targetChar.clues?.easy?.[0]?.[lang] || 'شخصية بارزة في هذا العالم'}"</h3>
+            <span className="text-xs font-bold text-amber-400">الجولة الحاسمة: من أنا؟</span>
+            <h3 className="text-lg font-black text-white mt-1">
+              خمّن هويتك السرية باستخدام التلميحات — لديك {WHO_AM_I_MAX_ATTEMPTS - whoAmIAttempts} محاولات متبقية
+            </h3>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            {world.characters.map(c => (
-              <button
-                key={c.id}
-                disabled={whoAmIResolved}
-                onClick={() => handleWhoAmIGuess(c.id)}
-                className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-amber-400 transition-all flex flex-col items-center text-center"
-              >
-                <div className="w-14 h-14 rounded-full bg-slate-800 overflow-hidden mb-2">
-                  <img src={c.avatar} alt={c.name[lang]} className="w-full h-full object-cover" />
-                </div>
-                <div className="font-bold text-xs text-white">{c.name[lang]}</div>
-              </button>
+          {/* Opponent's secret character, shown to me as a reference / classic "who am I" twist */}
+          {opponentTargetChar && (
+            <div className="mb-5 p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center gap-3 max-w-sm mx-auto">
+              <img
+                src={opponentTargetChar.avatar}
+                alt={opponentTargetChar.name?.[lang]}
+                className="w-10 h-10 rounded-full object-cover border border-slate-700"
+              />
+              <div className="text-[11px] text-slate-400">
+                <div className="font-bold text-slate-300">شخصية خصمك السرية:</div>
+                <div className="text-amber-300 font-black">{opponentTargetChar.name?.[lang]}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Progressive clues */}
+          <div className="space-y-2 mb-6 max-w-lg mx-auto">
+            {Array.from({ length: whoAmIClueLevel }).map((_, idx) => (
+              <div key={idx} className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-100 text-xs leading-relaxed">
+                💡 تلميح {idx + 1}: {getCharClue(targetChar, idx + 1)}
+              </div>
             ))}
           </div>
 
-          {whoAmIResolved && (
-            <div className="text-center">
+          {!whoAmIResolved ? (
+            <form onSubmit={handleWhoAmISubmitGuess} className="max-w-md mx-auto space-y-3">
+              <input
+                type="text"
+                value={whoAmIGuessInput}
+                onChange={(e) => setWhoAmIGuessInput(e.target.value)}
+                placeholder="اكتب اسم شخصيتك السرية هنا..."
+                autoFocus
+                className="w-full py-3 px-4 bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl text-center text-sm font-bold text-white placeholder-slate-600 outline-none transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={!whoAmIGuessInput.trim()}
+                className="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 disabled:opacity-40 text-slate-950 font-black text-sm rounded-xl shadow-md transition-all"
+              >
+                تأكيد التخمين
+              </button>
+
+              {whoAmIFeedback === 'wrong' && (
+                <div className="text-center text-xs font-bold text-rose-400 animate-fadeIn">
+                  تخمين خاطئ! جرّب مرة أخرى باستخدام التلميح الجديد ❌
+                </div>
+              )}
+            </form>
+          ) : (
+            <div className="text-center space-y-4">
+              <div className={`p-4 rounded-2xl border max-w-md mx-auto ${
+                whoAmIFeedback === 'correct'
+                  ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-200'
+                  : 'bg-rose-950/80 border-rose-500/60 text-rose-200'
+              }`}>
+                <div className="font-black text-sm mb-1">
+                  {whoAmIFeedback === 'correct' ? '🎉 خمّنت هويتك بنجاح!' : '😔 انتهت محاولاتك الثلاث'}
+                </div>
+                <div className="text-xs">
+                  شخصيتك السرية كانت: <span className="font-black">{targetChar.name?.[lang]}</span>
+                </div>
+              </div>
+
               <button
                 onClick={handleFinalFinish}
                 className="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black text-sm rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.6)] animate-bounce"

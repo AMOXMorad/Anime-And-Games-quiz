@@ -70,7 +70,7 @@ export const WorldBuilderPanel: React.FC = () => {
   const [activeCustomWorlds, setActiveCustomWorlds] = useState<World[]>(() => getCustomWorlds());
   const [supabaseKeyInput, setSupabaseKeyInput] = useState<string>(() => {
     const k = getSupabaseAnonKey();
-    return k.startsWith('eyJ') && !k.includes('dummy') ? k : '';
+    return (k.startsWith('eyJ') || k.startsWith('sb_')) && !k.includes('dummy') ? k : '';
   });
   const [isCloudConfigured, setIsCloudConfigured] = useState<boolean>(() => isSupabaseConfigured());
   const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
@@ -91,8 +91,8 @@ export const WorldBuilderPanel: React.FC = () => {
 
   const handleSaveSupabaseKey = () => {
     const cleanKey = supabaseKeyInput.trim();
-    if (!cleanKey.startsWith('eyJ')) {
-      alert('الرجاء إدخال Anon Key صحيح من Supabase (يبدأ بـ eyJ...)');
+    if (!cleanKey.startsWith('eyJ') && !cleanKey.startsWith('sb_')) {
+      alert('الرجاء إدخال Anon Key صحيح من Supabase (يبدأ بـ eyJ... أو sb_...)');
       return;
     }
     setCustomSupabaseKey(cleanKey);
