@@ -423,19 +423,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsPlaying(true);
     pushDuelUrl(code.toUpperCase());
 
+    // Don't keep a GameContext-level subscription alive into gameplay —
+    // SuperChallengeArena.tsx owns the `room_<CODE>` realtime channel once
+    // isPlaying is true. Two live subscriptions to the same topic crash Supabase.
     if (roomUnsubscribeRef.current) {
       roomUnsubscribeRef.current();
       roomUnsubscribeRef.current = null;
     }
-    const unsubscribe = subscribeToRoomUpdates(code, (updatedRoom) => {
-      if (!updatedRoom.game_state) return;
-      setOpponentScore(amHost ? updatedRoom.game_state.guest_score : updatedRoom.game_state.host_score);
-      if (updatedRoom.status === 'finished') {
-        unsubscribe();
-        roomUnsubscribeRef.current = null;
-      }
-    });
-    roomUnsubscribeRef.current = unsubscribe;
 
     sounds.playVictory();
     return true;
@@ -521,20 +515,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPlayerScore(0);
       setOpponentScore(0);
       sounds.playMatchFound();
-
+      // NOTE: no persistent GameContext-level subscription here on purpose.
+      // SuperChallengeArena.tsx opens its own realtime subscription to this
+      // exact room topic once gameplay starts — having two live subscriptions
+      // to the same `room_<CODE>` channel at once makes Supabase throw
+      // "cannot add postgres_changes callbacks ... after subscribe()" and
+      // crashes the whole app (black screen for both players).
       if (roomUnsubscribeRef.current) {
         roomUnsubscribeRef.current();
         roomUnsubscribeRef.current = null;
       }
-      const unsubscribe = subscribeToRoomUpdates(roomCode, (updatedRoom) => {
-        if (!updatedRoom.game_state) return;
-        setOpponentScore(amHost ? updatedRoom.game_state.guest_score : updatedRoom.game_state.host_score);
-        if (updatedRoom.status === 'finished') {
-          unsubscribe();
-          roomUnsubscribeRef.current = null;
-        }
-      });
-      roomUnsubscribeRef.current = unsubscribe;
     };
 
     findRandomMatch(w, mode, diff, profile).then(result => {
@@ -685,23 +675,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOpponentScore(0);
     sounds.playMatchFound();
 
-    // ★ CRITICAL: Subscribe to room updates so guest receives real-time sync from host
+    // NOTE: previously this kept a "★ CRITICAL" GameContext-level subscription
+    // running for the whole match. That's exactly what crashes the app —
+    // SuperChallengeArena.tsx opens its OWN subscription to this same
+    // `room_<CODE>` topic once gameplay starts, and Supabase does not allow
+    // two live subscriptions to the same channel topic at once (throws
+    // "cannot add postgres_changes callbacks ... after subscribe()" and takes
+    // down the whole React tree — the black screen both players saw).
+    // SuperChallengeArena already syncs the opponent's score itself, so no
+    // Context-level subscription is needed here at all.
     if (roomUnsubscribeRef.current) {
       roomUnsubscribeRef.current();
       roomUnsubscribeRef.current = null;
     }
-    const unsubscribe = subscribeToRoomUpdates(upper, (updatedRoom) => {
-      // Sync opponent (host) score and round in real-time
-      if (updatedRoom.game_state) {
-        setOpponentScore(updatedRoom.game_state.host_score || 0);
-        // If room is finished, update accordingly
-        if (updatedRoom.status === 'finished') {
-          unsubscribe();
-          roomUnsubscribeRef.current = null;
-        }
-      }
-    });
-    roomUnsubscribeRef.current = unsubscribe;
 
     return { success: true, message: 'تم الانضمام للغرفة بنجاح!' };
   };
